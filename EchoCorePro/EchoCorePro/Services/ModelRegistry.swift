@@ -127,44 +127,15 @@ struct ModelRegistry {
 
         // Voice Cloning models
         AvailableModel(
-            id: "coqui/XTTS-v2",
-            name: "XTTS v2 (Voice Cloning)",
-            description: "⭐ Clone any voice from ~6 seconds of audio. Supports 16 languages.",
+            id: "Qwen/Qwen3-TTS-12Hz-1.7B-Base",
+            name: "Qwen3-TTS (Voice Cloning)",
+            description: "⭐ High-quality voice cloning from ~6 seconds of audio. Supports 10 languages.",
             type: .voiceCloning,
-            sizeBytes: 1_800_000_000,
+            sizeBytes: 2_000_000_000,
             downloadURL: URL(
-                string: "https://huggingface.co/coqui/XTTS-v2/resolve/main/model.pth")!,
-            version: "2.0",
-            languages: [
-                "en", "es", "fr", "de", "it", "pt", "pl", "tr", "ru", "nl", "cs", "ar", "zh", "ja",
-                "hu", "ko",
-            ],
-            checksum: nil
-        ),
-        AvailableModel(
-            id: "myshell-ai/OpenVoice",
-            name: "OpenVoice (Zero-Shot Clone)",
-            description: "Zero-shot voice cloning. Clone voice without training.",
-            type: .voiceCloning,
-            sizeBytes: 350_000_000,
-            downloadURL: URL(
-                string:
-                    "https://huggingface.co/myshell-ai/OpenVoice/resolve/main/checkpoints/base_speakers/EN/checkpoint.pth"
-            )!,
+                string: "https://huggingface.co/Qwen/Qwen3-TTS-12Hz-1.7B-Base/resolve/main/pytorch_model.bin")!,
             version: "1.0",
-            languages: ["en", "zh"],
-            checksum: nil
-        ),
-        AvailableModel(
-            id: "Plachta/VALL-E-X",
-            name: "VALL-E X (Multilingual Clone)",
-            description: "Cross-lingual voice cloning. Speak in one language, output in another.",
-            type: .voiceCloning,
-            sizeBytes: 1_200_000_000,
-            downloadURL: URL(
-                string: "https://huggingface.co/Plachta/VALL-E-X/resolve/main/vallex-checkpoint.pt")!,
-            version: "1.0",
-            languages: ["en", "zh", "ja"],
+            languages: ["en", "it", "de", "fr", "es", "pt", "ru", "zh", "ja", "ko"],
             checksum: nil
         ),
     ]

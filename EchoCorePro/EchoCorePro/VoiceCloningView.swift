@@ -6,9 +6,11 @@
 //
 
 import AVFoundation
+import SwiftData
 import SwiftUI
 
 struct VoiceCloningView: View {
+    @Environment(\.modelContext) private var modelContext
     @StateObject private var recorder = AudioRecorder()
     @StateObject private var cloningViewModel = VoiceCloningViewModel()
 
@@ -17,30 +19,26 @@ struct VoiceCloningView: View {
     @State private var errorMessage: String?
     @State private var selectedSpeakerId: String?
 
+    // File upload state
+    @State private var selectedAudioURL: URL?
+    @State private var selectedAudioDuration: TimeInterval?
+
     // Synthesis settings
     @State private var selectedLanguage = "en"
     @State private var speechSpeed: Float = 1.0
 
-    // XTTS v2 by Coqui supports 17 languages with cross-lingual voice cloning
-    // Italian is now supported! 🇮🇹
+    // Qwen3-TTS supports 10 languages
     private let languages = [
-        ("en", "English"),  // ✅ XTTS + OpenVoice
-        ("es", "Spanish"),  // ✅ XTTS + OpenVoice
-        ("fr", "French"),  // ✅ XTTS + OpenVoice
-        ("de", "German"),  // ✅ XTTS
-        ("it", "Italian"),  // ✅ XTTS - NEW!
-        ("pt", "Portuguese"),  // ✅ XTTS
-        ("pl", "Polish"),  // ✅ XTTS
-        ("tr", "Turkish"),  // ✅ XTTS
-        ("ru", "Russian"),  // ✅ XTTS
-        ("nl", "Dutch"),  // ✅ XTTS
-        ("cs", "Czech"),  // ✅ XTTS
-        ("ar", "Arabic"),  // ✅ XTTS
-        ("zh", "Chinese"),  // ✅ XTTS + OpenVoice
-        ("ja", "Japanese"),  // ✅ XTTS + OpenVoice
-        ("ko", "Korean"),  // ✅ XTTS + OpenVoice
-        ("hu", "Hungarian"),  // ✅ XTTS
-        ("vi", "Vietnamese"),  // ✅ XTTS
+        ("en", "English"),
+        ("it", "Italian"),
+        ("de", "German"),
+        ("fr", "French"),
+        ("es", "Spanish"),
+        ("pt", "Portuguese"),
+        ("ru", "Russian"),
+        ("zh", "Chinese"),
+        ("ja", "Japanese"),
+        ("ko", "Korean"),
     ]
 
     var body: some View {
@@ -57,8 +55,12 @@ struct VoiceCloningView: View {
                         // Recording section
                         recordingSection
 
+                        // File upload section (alternative to recording)
+                        fileUploadSection
+
                         // Clone button
-                        if recorder.recordedFileURL != nil && !cloningViewModel.isCloning
+                        if (recorder.recordedFileURL != nil || selectedAudioURL != nil)
+                            && !cloningViewModel.isCloning
                             && clonedSpeakerId == nil
                         {
                             cloneButton
@@ -164,12 +166,12 @@ struct VoiceCloningView: View {
                 .frame(width: 10, height: 10)
 
             VStack(alignment: .leading, spacing: 2) {
-                Text("OpenVoice Server")
+                Text("Qwen3-TTS")
                     .font(.subheadline)
                     .fontWeight(.medium)
                 Text(
                     cloningViewModel.isServerHealthy
-                        ? "Connected on port 8765" : "Starting server..."
+                        ? "Ready • 10 languages" : "Starting server..."
                 )
                 .font(.caption)
                 .foregroundStyle(.secondary)
@@ -187,6 +189,10 @@ struct VoiceCloningView: View {
             RoundedRectangle(cornerRadius: 12)
                 .fill(.ultraThinMaterial)
         )
+    }
+
+    private func modelDisplayName(for modelName: String) -> String {
+        return "Qwen3-TTS (10 languages)"
     }
 
     // MARK: - Recording Section
@@ -224,7 +230,7 @@ struct VoiceCloningView: View {
                     Circle()
                         .stroke(
                             LinearGradient(
-                                colors: recorder.isRecording ? [.red, .orange] : [.blue, .purple],
+                                colors: recorder.isRecording ? [.red, .orange] : [.blue, .cyan],
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
                             ),
@@ -238,7 +244,7 @@ struct VoiceCloningView: View {
                                 ? AnyShapeStyle(Color.red)
                                 : AnyShapeStyle(
                                     LinearGradient(
-                                        colors: [.blue, .purple],
+                                        colors: [.blue, .cyan],
                                         startPoint: .topLeading,
                                         endPoint: .bottomTrailing
                                     ))
@@ -283,6 +289,88 @@ struct VoiceCloningView: View {
         .opacity(recorder.isRecording ? 1 : 0.5)
     }
 
+    // MARK: - File Upload Section
+
+    private var fileUploadSection: some View {
+        VStack(spacing: 12) {
+            HStack {
+                Text("Or Upload Audio File")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                Spacer()
+            }
+
+            if let audioURL = selectedAudioURL {
+                // File selected - show info
+                HStack {
+                    Image(systemName: "waveform")
+                        .font(.title2)
+                        .foregroundStyle(.blue)
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(audioURL.lastPathComponent)
+                            .font(.subheadline)
+                            .lineLimit(1)
+
+                        if let duration = selectedAudioDuration {
+                            Text(String(format: "Duration: %.1f seconds", duration))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+
+                    Spacer()
+
+                    Button {
+                        clearSelectedFile()
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                }
+                .padding()
+                .background(
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(Color(white: 0.1))
+                )
+            } else {
+                // No file selected - show upload button
+                Button {
+                    selectAudioFile()
+                } label: {
+                    VStack(spacing: 8) {
+                        Image(systemName: "arrow.up.doc.fill")
+                            .font(.system(size: 28))
+                            .foregroundStyle(.blue)
+
+                        Text("Select WAV File")
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+
+                        Text("6-60 seconds recommended")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 20)
+                    .background(
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(
+                                Color.blue.opacity(0.5), style: StrokeStyle(lineWidth: 2, dash: [8])
+                            )
+                    )
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding()
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(.ultraThinMaterial)
+        )
+    }
+
     // MARK: - Clone Button
 
     private var cloneButton: some View {
@@ -300,7 +388,7 @@ struct VoiceCloningView: View {
             .padding()
             .background(
                 LinearGradient(
-                    colors: [.blue, .purple],
+                    colors: [.blue, .cyan],
                     startPoint: .leading,
                     endPoint: .trailing
                 )
@@ -451,7 +539,7 @@ struct VoiceCloningView: View {
 
             TextEditor(text: $synthesizeText)
                 .font(.body)
-                .frame(minHeight: 120)
+                .frame(minHeight: 200)
                 .padding(8)
                 .background(
                     RoundedRectangle(cornerRadius: 8)
@@ -469,7 +557,7 @@ struct VoiceCloningView: View {
         )
     }
 
-    // MARK: - Synthesis Settings
+    // MARK: - Synthesis Settings (Simplified for Qwen3)
 
     private var synthesisSettings: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -502,83 +590,6 @@ struct VoiceCloningView: View {
                     .foregroundStyle(.secondary)
                     .frame(width: 40)
             }
-
-            Divider().padding(.vertical, 8)
-
-            // Advanced Settings - Always Expanded
-            VStack(alignment: .leading, spacing: 8) {
-                HStack {
-                    Text("Advanced Settings")
-                        .font(.subheadline)
-                        .fontWeight(.semibold)
-                    Spacer()
-                    Image(systemName: "slider.horizontal.3")
-                        .foregroundStyle(.blue)
-                        .font(.caption)
-                }
-                .padding(.bottom, 4)
-                
-                VStack(spacing: 12) {
-                    // Fine-tuning
-                    Group {
-                        settingSlider(
-                            title: "Temperature", value: $cloningViewModel.temperature,
-                            range: 0.1...2.0, step: 0.05, format: "%.2f")
-                        settingSlider(
-                            title: "Top P", value: $cloningViewModel.topP, range: 0.1...1.0,
-                            step: 0.05, format: "%.2f")
-                        settingSlider(
-                            title: "Repetition", value: $cloningViewModel.repetitionPenalty,
-                            range: 1.0...5.0, step: 0.1, format: "%.1f")
-                        settingSlider(
-                            title: "Min P", value: $cloningViewModel.minP, range: 0.0...1.0,
-                            step: 0.01, format: "%.2f")
-                        settingSlider(
-                            title: "CFG Weight", value: $cloningViewModel.cfgWeight,
-                            range: 0.0...2.0, step: 0.1, format: "%.1f")
-                        settingSlider(
-                            title: "Exaggeration", value: $cloningViewModel.exaggeration,
-                            range: 0.0...1.0, step: 0.05, format: "%.2f")
-                    }
-
-                    Divider()
-
-                    // Smart Chunking
-                    Text("Smart Chunking")
-                        .font(.caption)
-                        .fontWeight(.semibold)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-
-                    HStack {
-                        Text("Chunk Size")
-                            .font(.caption)
-                            .frame(width: 80, alignment: .leading)
-                        Slider(
-                            value: Binding(
-                                get: { Double(cloningViewModel.chunkSize) },
-                                set: { cloningViewModel.chunkSize = Int($0) }), in: 50...1000,
-                            step: 10)
-                        Text("\(cloningViewModel.chunkSize)")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .frame(width: 30)
-                    }
-
-                    settingSlider(
-                        title: "Min Sec", value: $cloningViewModel.minChunkSeconds,
-                        range: 0.5...10.0, step: 0.5, format: "%.1f s")
-
-                    HStack {
-                        Text("Retries")
-                            .font(.caption)
-                            .frame(width: 80, alignment: .leading)
-                        Stepper(
-                            "\(cloningViewModel.chunkRetries)",
-                            value: $cloningViewModel.chunkRetries, in: 0...5)
-                    }
-                }
-            }
-            // End Advanced Settings
         }
         .padding()
         .background(
@@ -626,12 +637,12 @@ struct VoiceCloningView: View {
                 selectedSpeakerId != nil && !synthesizeText.isEmpty
                     ? AnyShapeStyle(
                         LinearGradient(
-                            colors: [.purple, .pink],
+                            colors: [Color(white: 0.35), Color(white: 0.25)],
                             startPoint: .leading,
                             endPoint: .trailing
                         )
                     )
-                    : AnyShapeStyle(Color.gray)
+                    : AnyShapeStyle(Color.gray.opacity(0.5))
             )
             .foregroundStyle(.white)
             .clipShape(RoundedRectangle(cornerRadius: 12))
@@ -647,7 +658,7 @@ struct VoiceCloningView: View {
         VStack(spacing: 12) {
             HStack {
                 Image(systemName: "speaker.wave.2.fill")
-                    .foregroundStyle(.purple)
+                    .foregroundStyle(.green)
                 Text("Generated Speech")
                     .font(.headline)
                 Spacer()
@@ -678,7 +689,7 @@ struct VoiceCloningView: View {
             .padding()
             .background(
                 RoundedRectangle(cornerRadius: 10)
-                    .fill(.purple.opacity(0.1))
+                    .fill(Color(white: 0.15))
             )
         }
         .padding()
@@ -709,13 +720,19 @@ struct VoiceCloningView: View {
     }
 
     private func cloneVoice() async {
-        guard let audioURL = recorder.recordedFileURL else {
-            errorMessage = "No recording available"
+        // Support both uploaded file and microphone recording
+        let audioURL: URL
+        if let uploadedURL = selectedAudioURL {
+            audioURL = uploadedURL
+        } else if let recordedURL = recorder.recordedFileURL {
+            audioURL = recordedURL
+        } else {
+            errorMessage = "No recording or file available"
             return
         }
 
         guard cloningViewModel.isModelLoaded else {
-            errorMessage = "OpenVoice model not loaded. Please download the model first."
+            errorMessage = "Qwen3-TTS model not loaded. Please wait for the server to start."
             return
         }
 
@@ -727,6 +744,8 @@ struct VoiceCloningView: View {
 
         if response.success {
             clonedSpeakerId = String(speakerId)
+            // Clear the selected file after successful clone
+            clearSelectedFile()
             await cloningViewModel.refreshSpeakers()
         } else {
             errorMessage = response.message
@@ -748,6 +767,7 @@ struct VoiceCloningView: View {
 
         do {
             cloningViewModel.isSynthesizing = true
+            let startTime = CFAbsoluteTimeGetCurrent()
 
             let audioData = await cloningViewModel.synthesize(
                 text: synthesizeText,
@@ -756,12 +776,31 @@ struct VoiceCloningView: View {
                 speed: speechSpeed
             )
 
+            let processingTimeMs = Int((CFAbsoluteTimeGetCurrent() - startTime) * 1000)
+
             // Save to temp file
             let tempDir = FileManager.default.temporaryDirectory
             let filename = "synthesized_\(UUID().uuidString).wav"
             let audioURL = tempDir.appendingPathComponent(filename)
 
             try audioData.write(to: audioURL)
+
+            // Get audio duration for history
+            let audioDuration: Double
+            if let audioFile = try? AVAudioFile(forReading: audioURL) {
+                audioDuration = Double(audioFile.length) / audioFile.fileFormat.sampleRate
+            } else {
+                audioDuration = 0
+            }
+
+            // Record to history
+            HistoryService.shared.setContext(modelContext)
+            HistoryService.shared.recordSynthesis(
+                modelName: cloningViewModel.modelDisplayName,
+                inputText: synthesizeText,
+                outputDurationSeconds: audioDuration,
+                processingTimeMs: processingTimeMs
+            )
 
             synthesizedAudioURL = audioURL
 
@@ -801,6 +840,36 @@ struct VoiceCloningView: View {
         let seconds = Int(time) % 60
         return String(format: "%02d:%02d", minutes, seconds)
     }
+
+    // MARK: - File Upload Actions
+
+    private func selectAudioFile() {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.wav, .audio]
+        panel.allowsMultipleSelection = false
+        panel.canChooseDirectories = false
+        panel.message = "Select a WAV audio file (6+ seconds recommended)"
+
+        if panel.runModal() == .OK, let url = panel.url {
+            selectedAudioURL = url
+
+            // Get audio duration
+            let asset = AVAsset(url: url)
+            Task {
+                do {
+                    let duration = try await asset.load(.duration)
+                    selectedAudioDuration = duration.seconds
+                } catch {
+                    errorMessage = "Could not read audio file duration"
+                }
+            }
+        }
+    }
+
+    private func clearSelectedFile() {
+        selectedAudioURL = nil
+        selectedAudioDuration = nil
+    }
 }
 
 // MARK: - ViewModel
@@ -812,6 +881,9 @@ class VoiceCloningViewModel: ObservableObject {
     @Published private(set) var speakers: [String] = []
     @Published var isCloning = false
     @Published var isSynthesizing = false
+
+    // Model selection (qwen3 only)
+    @Published var activeModel: String = "qwen3"
 
     @Published var temperature: Float = 0.7
     @Published var topP: Float = 0.8
@@ -837,41 +909,78 @@ class VoiceCloningViewModel: ObservableObject {
         }
     }
 
-    private func startServerIfNeeded() async {
-        // Check if server can be started
-        let scriptPath =
-            Bundle.main.path(forResource: "start_openvoice_server", ofType: "sh")
-            ?? FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first?
-            .deletingLastPathComponent()
-            .appendingPathComponent("EchoCorePro")
-            .appendingPathComponent("Scripts")
-            .appendingPathComponent("start_server.sh")
-            .path
+    var modelDisplayName: String {
+        return "Qwen3-TTS"
+    }
 
-        guard let scriptPath = scriptPath, FileManager.default.fileExists(atPath: scriptPath) else {
+    private func startServerIfNeeded() async {
+        // Try multiple locations for the server script
+        let possiblePaths = [
+            // Development: Scripts folder in project
+            "/Volumes/omarchyuser/projekti/nodaysidle-echocore-pro/EchoCorePro/Scripts",
+            // Built app: inside app bundle
+            Bundle.main.resourcePath.map { "\($0)/Scripts" },
+            // Fallback: relative to Documents
+            FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first?
+                .deletingLastPathComponent()
+                .appendingPathComponent("EchoCorePro/Scripts")
+                .path,
+        ].compactMap { $0 }
+
+        // Find the script directory
+        var scriptsDir: String?
+        for path in possiblePaths {
+            let pythonScript = (path as NSString).appendingPathComponent("openvoice_server.py")
+            if FileManager.default.fileExists(atPath: pythonScript) {
+                scriptsDir = path
+                break
+            }
+        }
+
+        guard let scriptsDir = scriptsDir else {
+            OSLogManager.shared.log(
+                "Could not find Scripts directory", category: .inference, level: .error)
             return
         }
 
-        // Start the server in background
+        // Try to start the server
         do {
             let process = Process()
-            process.executableURL = URL(fileURLWithPath: "/bin/bash")
-            process.arguments = [scriptPath]
+            let pythonPath = (scriptsDir as NSString).appendingPathComponent("venv/bin/python")
+            let serverScript = (scriptsDir as NSString).appendingPathComponent(
+                "openvoice_server.py")
+
+            if FileManager.default.fileExists(atPath: pythonPath) {
+                process.executableURL = URL(fileURLWithPath: pythonPath)
+                process.arguments = [serverScript]
+            } else {
+                // Fallback: try system python3
+                process.executableURL = URL(fileURLWithPath: "/usr/bin/python3")
+                process.arguments = [serverScript]
+            }
+
+            // Set working directory (important for imports)
+            process.currentDirectoryURL = URL(fileURLWithPath: scriptsDir)
+            process.standardOutput = FileHandle.nullDevice
+            process.standardError = FileHandle.nullDevice
+
             try process.run()
-            OSLogManager.shared.log("Started OpenVoice server", category: .inference, level: .info)
+            OSLogManager.shared.log(
+                "Started voice server from: \(scriptsDir)", category: .inference, level: .info)
 
-            // Wait a moment for server to start
-            try await Task.sleep(nanoseconds: 2_000_000_000)  // 2 seconds
-
-            // Check again
-            isServerHealthy = await service.checkHealth()
-            if isServerHealthy {
-                isModelLoaded = await service.isModelLoaded()
-                await refreshSpeakers()
+            // Poll health endpoint
+            for _ in 0..<15 {
+                try await Task.sleep(nanoseconds: 1_000_000_000)
+                if await service.checkHealth() {
+                    isServerHealthy = true
+                    isModelLoaded = await service.isModelLoaded()
+                    await refreshSpeakers()
+                    return
+                }
             }
         } catch {
             OSLogManager.shared.log(
-                "Failed to start OpenVoice server: \(error)", category: .inference, level: .error)
+                "Failed to start voice server: \(error)", category: .inference, level: .error)
         }
     }
 

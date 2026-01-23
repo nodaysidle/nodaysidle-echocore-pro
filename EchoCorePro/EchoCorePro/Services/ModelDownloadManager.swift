@@ -272,6 +272,77 @@ final class ModelDownloadManager: ObservableObject {
 
     // MARK: - Model Management
 
+    /// Reconcile local model files with SwiftData entities
+    /// This ensures models downloaded outside SwiftData are tracked, and orphan entities are cleaned up
+    func reconcileLocalModels() {
+        guard let context = modelContext else {
+            logger.log("Cannot reconcile: no model context", category: .storage, level: .warning)
+            return
+        }
+
+        let fileManager = FileManager.default
+        let modelsDir = modelsDirectory
+
+        // Get all .bin files on disk
+        let fileURLs: [URL]
+        do {
+            fileURLs = try fileManager.contentsOfDirectory(
+                at: modelsDir,
+                includingPropertiesForKeys: [.fileSizeKey],
+                options: .skipsHiddenFiles
+            ).filter { $0.pathExtension == "bin" }
+        } catch {
+            logger.log("Failed to list models directory: \(error)", category: .storage, level: .error)
+            return
+        }
+
+        // Fetch all existing entities
+        let fetchDescriptor = FetchDescriptor<LocalModelEntity>()
+        let existingEntities = (try? context.fetch(fetchDescriptor)) ?? []
+        let existingPaths = Set(existingEntities.map { $0.filePath })
+        let existingHuggingFaceIds = Set(existingEntities.compactMap { $0.huggingFaceId })
+
+        // Find files without corresponding entities
+        for fileURL in fileURLs {
+            if !existingPaths.contains(fileURL.path) {
+                // Extract model ID from filename (reverse of download naming)
+                let filename = fileURL.deletingPathExtension().lastPathComponent
+                let modelId = filename.replacingOccurrences(of: "_", with: "/")
+
+                // Skip if we already have an entity with this huggingFaceId
+                if existingHuggingFaceIds.contains(modelId) {
+                    continue
+                }
+
+                if let model = ModelRegistry.model(withId: modelId) {
+                    let attrs = try? fileManager.attributesOfItem(atPath: fileURL.path)
+                    let size = (attrs?[.size] as? Int64) ?? model.sizeBytes
+
+                    let entity = LocalModelEntity(
+                        name: model.name,
+                        type: model.type,
+                        version: model.version,
+                        filePath: fileURL.path,
+                        sizeBytes: size,
+                        huggingFaceId: model.id
+                    )
+                    context.insert(entity)
+                    logger.log("Reconciled orphan file as model: \(model.name)", category: .storage, level: .info)
+                }
+            }
+        }
+
+        // Remove entities whose files no longer exist
+        for entity in existingEntities {
+            if !fileManager.fileExists(atPath: entity.filePath) {
+                context.delete(entity)
+                logger.log("Removed orphan entity: \(entity.name)", category: .storage, level: .info)
+            }
+        }
+
+        try? context.save()
+    }
+
     /// Delete a downloaded model
     func deleteModel(_ model: LocalModelEntity) throws {
         // Delete file

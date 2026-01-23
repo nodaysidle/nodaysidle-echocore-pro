@@ -19,8 +19,6 @@
 		010 /* ProcessingHistoryEntity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 113 /* ProcessingHistoryEntity.swift */; };
 		011 /* DownloadService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 114 /* DownloadService.swift */; };
 		012 /* ModelRegistry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 115 /* ModelRegistry.swift */; };
-		013 /* ModelListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 116 /* ModelListView.swift */; };
-		014 /* RecordingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 117 /* RecordingView.swift */; };
 		015 /* InferenceService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 118 /* InferenceService.swift */; };
 		016 /* AudioRecorder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 119 /* AudioRecorder.swift */; };
 		017 /* ModelDownloadManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 120 /* ModelDownloadManager.swift */; };
@@ -28,6 +26,10 @@
 		019 /* MetalAudioProcessor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 122 /* MetalAudioProcessor.swift */; };
 		020 /* VoiceCloningService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 123 /* VoiceCloningService.swift */; };
 		4501BF7B2F18713700EEB945 /* VoiceCloningView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4501BF7A2F18713700EEB945 /* VoiceCloningView.swift */; };
+		021 /* HistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 124 /* HistoryView.swift */; };
+		023 /* HistoryService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 126 /* HistoryService.swift */; };
+		025 /* PythonServerManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 128 /* PythonServerManager.swift */; };
+		026 /* AppIcon.icns in Resources */ = {isa = PBXBuildFile; fileRef = 129 /* AppIcon.icns */; };
 		800 /* WhisperKit in Frameworks */ = {isa = PBXBuildFile; productRef = 801 /* WhisperKit */; };
 		EA26DA7E032A47A297A94B96 /* (null) in Sources */ = {isa = PBXBuildFile; };
 /* End PBXBuildFile section */
@@ -47,8 +49,6 @@
 		113 /* ProcessingHistoryEntity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProcessingHistoryEntity.swift; sourceTree = "<group>"; };
 		114 /* DownloadService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DownloadService.swift; sourceTree = "<group>"; };
 		115 /* ModelRegistry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelRegistry.swift; sourceTree = "<group>"; };
-		116 /* ModelListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelListView.swift; sourceTree = "<group>"; };
-		117 /* RecordingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingView.swift; sourceTree = "<group>"; };
 		118 /* InferenceService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InferenceService.swift; sourceTree = "<group>"; };
 		119 /* AudioRecorder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioRecorder.swift; sourceTree = "<group>"; };
 		120 /* ModelDownloadManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelDownloadManager.swift; sourceTree = "<group>"; };
@@ -56,6 +56,10 @@
 		122 /* MetalAudioProcessor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetalAudioProcessor.swift; sourceTree = "<group>"; };
 		123 /* VoiceCloningService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceCloningService.swift; sourceTree = "<group>"; };
 		4501BF7A2F18713700EEB945 /* VoiceCloningView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceCloningView.swift; sourceTree = "<group>"; };
+		124 /* HistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryView.swift; sourceTree = "<group>"; };
+		126 /* HistoryService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryService.swift; sourceTree = "<group>"; };
+		128 /* PythonServerManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PythonServerManager.swift; sourceTree = "<group>"; };
+		129 /* AppIcon.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = AppIcon.icns; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -91,6 +95,7 @@
 				308 /* Models */,
 				310 /* Metal */,
 				4501BF7A2F18713700EEB945 /* VoiceCloningView.swift */,
+				129 /* AppIcon.icns */,
 			);
 			path = EchoCorePro;
 			sourceTree = "<group>";
@@ -122,6 +127,8 @@
 				119 /* AudioRecorder.swift */,
 				120 /* ModelDownloadManager.swift */,
 				123 /* VoiceCloningService.swift */,
+				126 /* HistoryService.swift */,
+				128 /* PythonServerManager.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -145,8 +152,7 @@
 		307 /* Views */ = {
 			isa = PBXGroup;
 			children = (
-				116 /* ModelListView.swift */,
-				117 /* RecordingView.swift */,
+				124 /* HistoryView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -243,6 +249,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				026 /* AppIcon.icns in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -265,8 +272,6 @@
 				010 /* ProcessingHistoryEntity.swift in Sources */,
 				011 /* DownloadService.swift in Sources */,
 				012 /* ModelRegistry.swift in Sources */,
-				013 /* ModelListView.swift in Sources */,
-				014 /* RecordingView.swift in Sources */,
 				4501BF7B2F18713700EEB945 /* VoiceCloningView.swift in Sources */,
 				EA26DA7E032A47A297A94B96 /* (null) in Sources */,
 				015 /* InferenceService.swift in Sources */,
@@ -275,6 +280,9 @@
 				018 /* AudioProcessor.metal in Sources */,
 				019 /* MetalAudioProcessor.swift in Sources */,
 				020 /* VoiceCloningService.swift in Sources */,
+				021 /* HistoryView.swift in Sources */,
+				023 /* HistoryService.swift in Sources */,
+				025 /* PythonServerManager.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -406,7 +414,7 @@
 		702 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_APPICON_NAME = "";
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = EchoCorePro/EchoCorePro.entitlements;
 				CODE_SIGN_STYLE = Automatic;
@@ -414,7 +422,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = "";
-				ENABLE_APP_SANDBOX = YES;
+				ENABLE_APP_SANDBOX = NO;
 				ENABLE_FILE_ACCESS_DOWNLOADS_FOLDER = readwrite;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
@@ -422,6 +430,7 @@
 				ENABLE_USER_SELECTED_FILES = readwrite;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "EchoCore Pro";
+				INFOPLIST_KEY_CFBundleIconFile = AppIcon;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "EchoCore Pro needs microphone access for voice recording and transcription.";
@@ -440,7 +449,7 @@
 		703 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_APPICON_NAME = "";
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = EchoCorePro/EchoCorePro.entitlements;
 				CODE_SIGN_STYLE = Automatic;
@@ -448,7 +457,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = "";
-				ENABLE_APP_SANDBOX = YES;
+				ENABLE_APP_SANDBOX = NO;
 				ENABLE_FILE_ACCESS_DOWNLOADS_FOLDER = readwrite;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
@@ -456,6 +465,7 @@
 				ENABLE_USER_SELECTED_FILES = readwrite;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "EchoCore Pro";
+				INFOPLIST_KEY_CFBundleIconFile = AppIcon;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "EchoCore Pro needs microphone access for voice recording and transcription.";

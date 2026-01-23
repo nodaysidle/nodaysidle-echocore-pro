@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Workspace
+   version = "1.0">
+   <FileRef
+      location = "self:">
+   </FileRef>
+   <FileRef
+      location = "group:DownloadJobEntity.swift">
+   </FileRef>
+   <FileRef
+      location = "group:UserSettingsEntity.swift">
+   </FileRef>
+   <FileRef
+      location = "group:ProcessingHistoryEntity.swift">
+   </FileRef>
+   <FileRef
+      location = "group:ModelRegistry.swift">
+   </FileRef>
+   <FileRef
+      location = "group:DownloadService.swift">
+   </FileRef>
+   <FileRef
+      location = "group:AudioRecorder.swift">
+   </FileRef>
+   <FileRef
+      location = "group:InferenceService.swift">
+   </FileRef>
+   <FileRef
+      location = "group:HistoryService.swift">
+   </FileRef>
+   <FileRef
+      location = "group:VoiceCloningViewModel.swift">
+   </FileRef>
+   <FileRef
+      location = "group:MetalAudioProcessor.swift">
+   </FileRef>
+   <FileRef
+      location = "group:BUILD_STATUS.md">
+   </FileRef>
+</Workspace>

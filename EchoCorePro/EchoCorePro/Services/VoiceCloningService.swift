@@ -85,8 +85,8 @@ actor VoiceCloningService: ServiceProtocol {
 
     init() {
         let config = URLSessionConfiguration.default
-        config.timeoutIntervalForRequest = 60
-        config.timeoutIntervalForResource = 300
+        config.timeoutIntervalForRequest = 120  // Qwen3 model needs more time
+        config.timeoutIntervalForResource = 600
         self.urlSession = URLSession(configuration: config)
     }
 
