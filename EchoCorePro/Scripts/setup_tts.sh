@@ -70,57 +70,28 @@ echo ""
 KOKORO_DIR="$SCRIPT_DIR/kokoro_models"
 mkdir -p "$KOKORO_DIR"
 
-# Download Kokoro ONNX model from HuggingFace
-if [ ! -f "$KOKORO_DIR/kokoro-v0_19.onnx" ]; then
-    echo "Downloading Kokoro v0.19 ONNX model..."
-    pip install huggingface_hub
-    python3 -c "
-from huggingface_hub import hf_hub_download
-import shutil, os
+# Download Kokoro ONNX model from k2-fsa/sherpa-onnx releases
+# This tar.bz2 includes model.onnx, voices.bin, tokens.txt, and espeak-ng-data/
+if [ ! -f "$KOKORO_DIR/model.onnx" ]; then
+    echo "Downloading Kokoro English model from sherpa-onnx releases..."
+    KOKORO_TAR="kokoro-en-v0_19.tar.bz2"
+    curl -L -o "$SCRIPT_DIR/$KOKORO_TAR" \
+        "https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/$KOKORO_TAR"
 
-kokoro_dir = '$KOKORO_DIR'
+    echo "Extracting model files..."
+    tar xf "$SCRIPT_DIR/$KOKORO_TAR" -C "$SCRIPT_DIR"
 
-# Download model files from hexgrad/Kokoro-82M
-for filename in ['kokoro-v0_19.onnx', 'voices.bin', 'tokens.txt']:
-    print(f'  Downloading {filename}...')
-    path = hf_hub_download(repo_id='hexgrad/Kokoro-82M', filename=filename)
-    shutil.copy2(path, os.path.join(kokoro_dir, filename))
-    print(f'  Saved to {kokoro_dir}/{filename}')
+    # Move extracted files into kokoro_models/
+    EXTRACTED_DIR="$SCRIPT_DIR/kokoro-en-v0_19"
+    if [ -d "$EXTRACTED_DIR" ]; then
+        cp -R "$EXTRACTED_DIR"/* "$KOKORO_DIR/"
+        rm -rf "$EXTRACTED_DIR"
+    fi
 
-print('Kokoro model files downloaded!')
-"
+    rm -f "$SCRIPT_DIR/$KOKORO_TAR"
+    echo "Kokoro model files downloaded and extracted!"
 else
     echo "Kokoro model already downloaded."
-fi
-
-# Download espeak-ng data for Kokoro
-if [ ! -d "$KOKORO_DIR/kokoro-espeak-ng-data" ]; then
-    echo ""
-    echo "Downloading espeak-ng data for Kokoro..."
-    python3 -c "
-from huggingface_hub import snapshot_download
-import shutil, os
-
-kokoro_dir = '$KOKORO_DIR'
-# Try to get espeak-ng data from sherpa-onnx kokoro model
-try:
-    path = snapshot_download(
-        repo_id='k2-fsa/sherpa-onnx-tts-kokoro-en-v0_19',
-        allow_patterns=['espeak-ng-data/*'],
-        local_dir=kokoro_dir + '/tmp_download'
-    )
-    src = os.path.join(kokoro_dir, 'tmp_download', 'espeak-ng-data')
-    dst = os.path.join(kokoro_dir, 'kokoro-espeak-ng-data')
-    if os.path.exists(src):
-        shutil.copytree(src, dst, dirs_exist_ok=True)
-        print('espeak-ng data installed!')
-    shutil.rmtree(os.path.join(kokoro_dir, 'tmp_download'), ignore_errors=True)
-except Exception as e:
-    print(f'Warning: Could not download espeak-ng data: {e}')
-    print('Kokoro will still work, but some phonemes may not render correctly.')
-"
-else
-    echo "espeak-ng data already present."
 fi
 
 # Clean up old Piper voices if they exist

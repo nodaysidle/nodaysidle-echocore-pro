@@ -100,10 +100,10 @@ def load_kokoro_model():
 
         logger.info("Loading Kokoro TTS via sherpa-onnx...")
 
-        model_path = os.path.join(KOKORO_DIR, "kokoro-v0_19.onnx")
+        model_path = os.path.join(KOKORO_DIR, "model.onnx")
         voices_path = os.path.join(KOKORO_DIR, "voices.bin")
         tokens_path = os.path.join(KOKORO_DIR, "tokens.txt")
-        data_dir = os.path.join(KOKORO_DIR, "kokoro-espeak-ng-data")
+        data_dir = os.path.join(KOKORO_DIR, "espeak-ng-data")
 
         if not os.path.exists(model_path):
             logger.error(f"Kokoro model not found at: {model_path}")
