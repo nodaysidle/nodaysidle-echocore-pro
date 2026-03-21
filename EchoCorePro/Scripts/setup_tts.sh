@@ -51,7 +51,7 @@ echo "=================================================="
 echo "  Model will be downloaded on first run (~2GB)"
 echo ""
 
-pip install mlx-audio
+pip install "mlx-audio>=0.3.1,<0.4.0"
 
 echo ""
 echo "=================================================="
