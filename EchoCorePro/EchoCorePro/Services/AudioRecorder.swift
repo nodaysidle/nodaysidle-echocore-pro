@@ -100,22 +100,24 @@ final class AudioRecorder: ObservableObject {
         
         inputNode.installTap(onBus: 0, bufferSize: 1024, format: inputFormat) { [weak self] buffer, _ in
             guard let self = self else { return }
-            
+
             // Convert to recording format
             if let converter = converter {
-                let convertedBuffer = AVAudioPCMBuffer(
+                guard let convertedBuffer = AVAudioPCMBuffer(
                     pcmFormat: recordingFormat,
                     frameCapacity: AVAudioFrameCount(recordingFormat.sampleRate * Double(buffer.frameLength) / inputFormat.sampleRate)
-                )!
-                
+                ) else {
+                    return // Skip this buffer if conversion buffer creation fails
+                }
+
                 var error: NSError?
                 let inputBlock: AVAudioConverterInputBlock = { _, outStatus in
                     outStatus.pointee = .haveData
                     return buffer
                 }
-                
+
                 converter.convert(to: convertedBuffer, error: &error, withInputFrom: inputBlock)
-                
+
                 if error == nil {
                     Task { @MainActor in
                         self.processAudioBuffer(convertedBuffer)

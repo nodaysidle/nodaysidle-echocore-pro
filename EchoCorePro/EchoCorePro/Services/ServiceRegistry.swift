@@ -50,7 +50,7 @@ final class ServiceRegistry: ObservableObject {
 
     // MARK: - Core Services
 
-    /// Python server manager for OpenVoice voice cloning server
+    /// Python server manager for TTS server (Qwen3-TTS + Piper)
     let pythonServerManager = PythonServerManager()
 
     // MARK: - Private Storage
@@ -100,7 +100,7 @@ final class ServiceRegistry: ObservableObject {
     func registerCoreServices() async {
         logger.log("Registering core services", category: .lifecycle, level: .info)
 
-        // Register Python Server Manager (auto-starts OpenVoice server)
+        // Register Python Server Manager (auto-starts TTS server)
         register(pythonServerManager)
 
         // Initialize all services (starts the Python server)

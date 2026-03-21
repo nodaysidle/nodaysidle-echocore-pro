@@ -2,13 +2,13 @@
 //  PythonServerManager.swift
 //  EchoCorePro
 //
-//  Manages the lifecycle of the Python OpenVoice server process
+//  Manages the lifecycle of the Python TTS server (Qwen3-TTS + Piper)
 //
 
 import Combine
 import Foundation
 
-/// Manages the Python OpenVoice server subprocess lifecycle
+/// Manages the Python TTS server subprocess lifecycle
 /// Automatically starts the server on app launch and stops it on app termination
 @MainActor
 final class PythonServerManager: ObservableObject, ServiceProtocol, @unchecked Sendable {
@@ -32,7 +32,7 @@ final class PythonServerManager: ObservableObject, ServiceProtocol, @unchecked S
     // Server configuration
     private let serverPort = 8765
     private let healthCheckInterval: TimeInterval = 5.0
-    private let startupTimeout: TimeInterval = 120.0  // Models can take time to load
+    private let startupTimeout: TimeInterval = 180.0  // Qwen3-TTS + Piper need time to load
 
     // MARK: - Initialization
 
@@ -58,15 +58,38 @@ final class PythonServerManager: ObservableObject, ServiceProtocol, @unchecked S
 
     // MARK: - Server Management
 
-    /// Start the Python OpenVoice server
+    /// Start the Python TTS server
     func startServer() async {
         guard !isRunning else {
             logger.log("Server already running", category: .inference, level: .debug)
             return
         }
 
+        statusMessage = "Checking for existing server..."
+        logger.log("Starting Python TTS server", category: .inference, level: .info)
+
+        // Check if a stale server is already running on the port
+        if await checkHealth() {
+            logger.log("Found existing server on port \(serverPort), killing stale instance...",
+                      category: .inference, level: .warning)
+            statusMessage = "Killing stale server..."
+
+            // Kill any stale Python TTS server processes
+            await killStaleServer()
+
+            // Wait for port to be freed
+            try? await Task.sleep(nanoseconds: 2_000_000_000)  // 2 seconds
+
+            // Verify it's dead
+            if await checkHealth() {
+                logger.log("Failed to kill stale server, attempting graceful shutdown via API",
+                          category: .inference, level: .warning)
+                await requestServerShutdown()
+                try? await Task.sleep(nanoseconds: 3_000_000_000)  // 3 seconds
+            }
+        }
+
         statusMessage = "Starting server..."
-        logger.log("Starting Python OpenVoice server", category: .inference, level: .info)
 
         // Find the Scripts directory
         guard let scriptsPath = findScriptsDirectory() else {
@@ -76,7 +99,7 @@ final class PythonServerManager: ObservableObject, ServiceProtocol, @unchecked S
         }
 
         let pythonPath = scriptsPath.appendingPathComponent("venv/bin/python")
-        let serverScript = scriptsPath.appendingPathComponent("openvoice_server.py")
+        let serverScript = scriptsPath.appendingPathComponent("tts_server.py")
 
         // Verify files exist
         guard FileManager.default.fileExists(atPath: pythonPath.path) else {
@@ -151,6 +174,29 @@ final class PythonServerManager: ObservableObject, ServiceProtocol, @unchecked S
             logger.log(
                 "Failed to start Python server: \(error)", category: .inference, level: .error)
         }
+    }
+
+    /// Restart the Python server (useful when voice files change)
+    func restartServer() async {
+        logger.log("Restarting Python TTS server...", category: .inference, level: .info)
+        statusMessage = "Restarting server..."
+
+        // Stop existing server
+        stopServer()
+
+        // Wait for it to fully stop
+        try? await Task.sleep(nanoseconds: 3_000_000_000)  // 3 seconds
+
+        // Kill any lingering processes
+        await killStaleServer()
+        try? await Task.sleep(nanoseconds: 1_000_000_000)  // 1 second
+
+        // Reset state
+        isRunning = false
+        isHealthy = false
+
+        // Start fresh
+        await startServer()
     }
 
     /// Stop the Python server
@@ -249,13 +295,18 @@ final class PythonServerManager: ObservableObject, ServiceProtocol, @unchecked S
                 "/Volumes/omarchyuser/projekti/nodaysidle-echocore-pro/EchoCorePro/Scripts")
         candidates.append(("Fixed dev path", fixedDevPath))
 
-        // 5. User's Application Support directory
+        // 5. User's Application Support directory (primary location for installed app)
         if let appSupport = fm.urls(for: .applicationSupportDirectory, in: .userDomainMask).first {
+            // Check EchoCorePro directly (flat structure)
+            let appSupportDirect = appSupport.appendingPathComponent("EchoCorePro")
+            candidates.append(("Application Support (direct)", appSupportDirect))
+
+            // Also check nested Scripts subfolder (legacy)
             let appSupportScripts = appSupport.appendingPathComponent("EchoCorePro/Scripts")
-            candidates.append(("Application Support", appSupportScripts))
+            candidates.append(("Application Support (Scripts)", appSupportScripts))
         }
 
-        // 6. Scripts next to /Applications/EchoCorePro.app
+        // 6. Scripts next to /Applications/EchoCorePro.app (for development)
         let applicationsScripts = URL(fileURLWithPath: "/Applications/EchoCorePro/Scripts")
         candidates.append(("Applications folder", applicationsScripts))
 
@@ -345,6 +396,55 @@ final class PythonServerManager: ObservableObject, ServiceProtocol, @unchecked S
 
         healthCheckTimer?.invalidate()
         healthCheckTimer = nil
+    }
+
+    /// Kill any stale Python TTS server processes
+    private func killStaleServer() async {
+        logger.log("Killing stale TTS server processes...", category: .inference, level: .info)
+
+        // Use pkill to find and kill Python processes running tts_server
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: "/usr/bin/pkill")
+        task.arguments = ["-f", "python.*tts_server"]
+
+        do {
+            try task.run()
+            task.waitUntilExit()
+            logger.log("pkill completed with exit code: \(task.terminationStatus)",
+                      category: .inference, level: .debug)
+        } catch {
+            logger.log("pkill failed: \(error)", category: .inference, level: .warning)
+        }
+
+        // Also try to kill by port using lsof + kill
+        let lsofTask = Process()
+        lsofTask.executableURL = URL(fileURLWithPath: "/bin/sh")
+        lsofTask.arguments = ["-c", "lsof -ti :\(serverPort) | xargs kill -9 2>/dev/null || true"]
+
+        do {
+            try lsofTask.run()
+            lsofTask.waitUntilExit()
+        } catch {
+            logger.log("Port kill failed: \(error)", category: .inference, level: .debug)
+        }
+    }
+
+    /// Request graceful shutdown via API
+    private func requestServerShutdown() async {
+        let url = URL(string: "http://127.0.0.1:\(serverPort)/shutdown")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.timeoutInterval = 5
+
+        do {
+            let config = URLSessionConfiguration.ephemeral
+            config.timeoutIntervalForRequest = 5
+            let session = URLSession(configuration: config)
+            _ = try await session.data(for: request)
+            logger.log("Shutdown request sent to stale server", category: .inference, level: .info)
+        } catch {
+            logger.log("Shutdown request failed: \(error)", category: .inference, level: .debug)
+        }
     }
 
     /// Monitor process output

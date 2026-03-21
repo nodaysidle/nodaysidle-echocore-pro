@@ -2,22 +2,137 @@
 //  VoiceCloningService.swift
 //  EchoCorePro
 //
-//  Swift client for OpenVoice Python server
+//  Swift client for TTS server (Qwen3-TTS + Kokoro)
 //
 
 import Combine
 import Foundation
 
-/// Service for voice cloning via local OpenVoice server
+// MARK: - Constants
+
+private enum ServiceConstants {
+    static let baseURL = URL(string: "http://127.0.0.1:8765")!
+    static let requestTimeout: TimeInterval = 600  // 1.7B model needs more time per chunk
+    static let resourceTimeout: TimeInterval = 1200
+    static let healthCacheTTL: TimeInterval = 5.0
+    static let wavHeaderMinSize = 44
+}
+
+// MARK: - Kokoro TTS Service
+
+/// Service for Kokoro TTS via the local Python server
+actor KokoroTTSService {
+
+    struct HealthResponse: Codable {
+        let kokoroLoaded: Bool
+
+        enum CodingKeys: String, CodingKey {
+            case kokoroLoaded = "kokoro_loaded"
+        }
+    }
+
+    struct VoiceInfo: Codable, Identifiable, Sendable {
+        let id: String
+        let name: String
+        let gender: String
+    }
+
+    struct VoicesResponse: Codable {
+        let voicesByLanguage: [String: [VoiceInfo]]
+
+        enum CodingKeys: String, CodingKey {
+            case voicesByLanguage = "voices_by_language"
+        }
+    }
+
+    private struct SynthesizeRequest: Encodable {
+        let text: String
+        let voice: String
+        let speed: Double
+    }
+
+    private let urlSession: URLSession
+
+    init() {
+        let config = URLSessionConfiguration.default
+        config.timeoutIntervalForRequest = ServiceConstants.requestTimeout
+        config.timeoutIntervalForResource = ServiceConstants.resourceTimeout
+        self.urlSession = URLSession(configuration: config)
+    }
+
+    func checkHealth() async throws -> Bool {
+        let url = ServiceConstants.baseURL.appendingPathComponent("health")
+        let (data, response) = try await urlSession.data(from: url)
+
+        guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
+            return false
+        }
+
+        let health = try JSONDecoder().decode(HealthResponse.self, from: data)
+        return health.kokoroLoaded
+    }
+
+    func fetchVoices() async throws -> [String: [VoiceInfo]] {
+        let url = ServiceConstants.baseURL.appendingPathComponent("kokoro/voices")
+        let (data, response) = try await urlSession.data(from: url)
+
+        guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
+            return [:]
+        }
+
+        let voices = try JSONDecoder().decode(VoicesResponse.self, from: data)
+        return voices.voicesByLanguage
+    }
+
+    func synthesize(
+        text: String,
+        voice: String,
+        speed: Double
+    ) async throws -> Data {
+        let url = ServiceConstants.baseURL.appendingPathComponent("kokoro/synthesize")
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try JSONEncoder().encode(
+            SynthesizeRequest(text: text, voice: voice, speed: speed)
+        )
+
+        let (data, response) = try await urlSession.data(for: request)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw VoiceCloningService.VoiceCloningError.networkError("Invalid response")
+        }
+
+        guard httpResponse.statusCode == 200 else {
+            if let errorData = try? JSONDecoder().decode([String: String].self, from: data),
+               let error = errorData["error"] {
+                throw VoiceCloningService.VoiceCloningError.synthesizeFailed(error)
+            }
+            throw VoiceCloningService.VoiceCloningError.synthesizeFailed("Status \(httpResponse.statusCode)")
+        }
+
+        guard data.count > ServiceConstants.wavHeaderMinSize else {
+            throw VoiceCloningService.VoiceCloningError.invalidAudio
+        }
+
+        return data
+    }
+}
+
+// MARK: - Voice Cloning Service (Qwen3-TTS)
+
+/// Service for voice cloning via Qwen3-TTS
 actor VoiceCloningService: ServiceProtocol {
 
     nonisolated let serviceId = "VoiceCloningService"
 
     // MARK: - Properties
 
-    private let baseURL = URL(string: "http://127.0.0.1:8765")!
     private let urlSession: URLSession
     private let logger = OSLogManager.shared
+
+    // Health check cache
+    private var lastHealthCheck: (date: Date, healthy: Bool)?
 
     // MARK: - Types
 
@@ -36,18 +151,25 @@ actor VoiceCloningService: ServiceProtocol {
 
     struct HealthResponse: Codable {
         let status: String
-        let modelLoaded: Bool
-        let speakersLoaded: Int
+        let qwen3Loaded: Bool
+        let kokoroLoaded: Bool
+        let speakersCount: Int
 
         enum CodingKeys: String, CodingKey {
             case status
-            case modelLoaded = "model_loaded"
-            case speakersLoaded = "speakers_loaded"
+            case qwen3Loaded = "qwen3_loaded"
+            case kokoroLoaded = "kokoro_loaded"
+            case speakersCount = "speakers_count"
         }
     }
 
+    struct SpeakerInfo: Codable {
+        let id: String
+        let duration: Double
+    }
+
     struct SpeakersResponse: Codable {
-        let speakers: [String]
+        let speakers: [SpeakerInfo]
         let count: Int
     }
 
@@ -63,10 +185,9 @@ actor VoiceCloningService: ServiceProtocol {
         var errorDescription: String? {
             switch self {
             case .serverNotRunning:
-                return
-                    "OpenVoice server is not running. Start it with: python Scripts/openvoice_server.py"
+                return "TTS server is not running. Start it with: python Scripts/tts_server.py"
             case .modelNotLoaded:
-                return "OpenVoice model not loaded on server"
+                return "Qwen3-TTS model not loaded on server"
             case .cloneFailed(let reason):
                 return "Voice cloning failed: \(reason)"
             case .synthesizeFailed(let reason):
@@ -74,7 +195,7 @@ actor VoiceCloningService: ServiceProtocol {
             case .speakerNotFound(let id):
                 return "Speaker '\(id)' not found. Clone a voice first."
             case .invalidAudio:
-                return "Invalid audio data"
+                return "Invalid or empty audio data"
             case .networkError(let reason):
                 return "Network error: \(reason)"
             }
@@ -85,24 +206,19 @@ actor VoiceCloningService: ServiceProtocol {
 
     init() {
         let config = URLSessionConfiguration.default
-        config.timeoutIntervalForRequest = 120  // Qwen3 model needs more time
-        config.timeoutIntervalForResource = 600
+        config.timeoutIntervalForRequest = ServiceConstants.requestTimeout
+        config.timeoutIntervalForResource = ServiceConstants.resourceTimeout
         self.urlSession = URLSession(configuration: config)
     }
 
     // MARK: - ServiceProtocol
 
     func initialize() async throws {
-        // Check if server is running
         let isHealthy = await checkHealth()
         if isHealthy {
-            logger.log(
-                "VoiceCloningService connected to OpenVoice server", category: .inference,
-                level: .info)
+            logger.log("VoiceCloningService connected to TTS server", category: .inference, level: .info)
         } else {
-            logger.log(
-                "VoiceCloningService: OpenVoice server not available", category: .inference,
-                level: .warning)
+            logger.log("VoiceCloningService: TTS server not available", category: .inference, level: .warning)
         }
     }
 
@@ -110,34 +226,43 @@ actor VoiceCloningService: ServiceProtocol {
         logger.log("VoiceCloningService shutdown", category: .inference, level: .info)
     }
 
-    // MARK: - Health Check
+    // MARK: - Health Check with Caching
 
-    /// Check if the OpenVoice server is running
+    /// Check if the server is running (with caching)
     func checkHealth() async -> Bool {
+        // Return cached result if fresh
+        if let cached = lastHealthCheck,
+           Date().timeIntervalSince(cached.date) < ServiceConstants.healthCacheTTL {
+            return cached.healthy
+        }
+
         do {
-            let url = baseURL.appendingPathComponent("health")
+            let url = ServiceConstants.baseURL.appendingPathComponent("health")
             let (data, response) = try await urlSession.data(from: url)
 
             guard let httpResponse = response as? HTTPURLResponse,
-                httpResponse.statusCode == 200
-            else {
+                  httpResponse.statusCode == 200 else {
+                lastHealthCheck = (Date(), false)
                 return false
             }
 
             let health = try JSONDecoder().decode(HealthResponse.self, from: data)
-            return health.status == "healthy"
+            let healthy = health.status == "healthy" || health.qwen3Loaded
+            lastHealthCheck = (Date(), healthy)
+            return healthy
         } catch {
+            lastHealthCheck = (Date(), false)
             return false
         }
     }
 
-    /// Check if the model is loaded on the server
+    /// Check if Qwen3-TTS model is loaded
     func isModelLoaded() async -> Bool {
         do {
-            let url = baseURL.appendingPathComponent("health")
+            let url = ServiceConstants.baseURL.appendingPathComponent("health")
             let (data, _) = try await urlSession.data(from: url)
             let health = try JSONDecoder().decode(HealthResponse.self, from: data)
-            return health.modelLoaded
+            return health.qwen3Loaded
         } catch {
             return false
         }
@@ -146,10 +271,6 @@ actor VoiceCloningService: ServiceProtocol {
     // MARK: - Voice Cloning
 
     /// Clone a voice from an audio file
-    /// - Parameters:
-    ///   - audioURL: Path to the reference audio file (WAV format, 6+ seconds)
-    ///   - speakerId: Unique identifier for this cloned voice
-    /// - Returns: Clone response with status
     func cloneVoice(from audioURL: URL, speakerId: String) async throws -> CloneResponse {
         guard await checkHealth() else {
             throw VoiceCloningError.serverNotRunning
@@ -157,31 +278,27 @@ actor VoiceCloningService: ServiceProtocol {
 
         logger.log("Cloning voice for speaker: \(speakerId)", category: .inference, level: .info)
 
-        let url = baseURL.appendingPathComponent("clone")
+        let url = ServiceConstants.baseURL.appendingPathComponent("clone")
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
 
         // Create multipart form data
         let boundary = UUID().uuidString
-        request.setValue(
-            "multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
+        request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
 
         var body = Data()
 
         // Add audio file
         let audioData = try Data(contentsOf: audioURL)
         body.append("--\(boundary)\r\n".data(using: .utf8)!)
-        body.append(
-            "Content-Disposition: form-data; name=\"audio\"; filename=\"reference.wav\"\r\n".data(
-                using: .utf8)!)
+        body.append("Content-Disposition: form-data; name=\"audio\"; filename=\"reference.wav\"\r\n".data(using: .utf8)!)
         body.append("Content-Type: audio/wav\r\n\r\n".data(using: .utf8)!)
         body.append(audioData)
         body.append("\r\n".data(using: .utf8)!)
 
         // Add speaker_id
         body.append("--\(boundary)\r\n".data(using: .utf8)!)
-        body.append(
-            "Content-Disposition: form-data; name=\"speaker_id\"\r\n\r\n".data(using: .utf8)!)
+        body.append("Content-Disposition: form-data; name=\"speaker_id\"\r\n\r\n".data(using: .utf8)!)
         body.append("\(speakerId)\r\n".data(using: .utf8)!)
         body.append("--\(boundary)--\r\n".data(using: .utf8)!)
 
@@ -195,74 +312,56 @@ actor VoiceCloningService: ServiceProtocol {
 
         if httpResponse.statusCode != 200 {
             if let errorData = try? JSONDecoder().decode([String: String].self, from: data),
-                let detail = errorData["detail"]
-            {
-                throw VoiceCloningError.cloneFailed(detail)
+               let error = errorData["error"] {
+                throw VoiceCloningError.cloneFailed(error)
             }
             throw VoiceCloningError.cloneFailed("Status \(httpResponse.statusCode)")
         }
 
         let cloneResponse = try JSONDecoder().decode(CloneResponse.self, from: data)
-        logger.log(
-            "Voice cloned successfully: \(cloneResponse.message)", category: .inference,
-            level: .info)
+        logger.log("Voice cloned successfully: \(cloneResponse.message)", category: .inference, level: .info)
 
         return cloneResponse
     }
 
-    /// Synthesize speech using a cloned voice
-    /// - Parameters:
-    ///   - text: Text to synthesize
-    ///   - speakerId: ID of the cloned speaker to use
-    ///   - language: Language code (default "en")
-    ///   - speed: Speech speed multiplier (default 1.0)
-    /// - Returns: Audio data as WAV
+    /// Synthesize speech using Qwen3-TTS voice cloning - unlimited text
     func synthesize(
         text: String,
         speakerId: String,
         language: String = "en",
         speed: Float = 1.0,
-        temperature: Float = 0.7,
-        topP: Float = 0.8,
-        repetitionPenalty: Float = 2.0,
-        minP: Float = 0.05,
-        cfgWeight: Float = 0.0,
-        exaggeration: Float = 0.0,
-        chunkSize: Int = 200,
-        minChunkSeconds: Float = 2.0,
-        chunkRetries: Int = 0
+        temperature: Float = 0.9,
+        topK: Int = 50,
+        topP: Float = 1.0,
+        repetitionPenalty: Float = 1.05,
+        maxTokens: Int = 4096,
+        refText: String = ""
     ) async throws -> Data {
         guard await checkHealth() else {
             throw VoiceCloningError.serverNotRunning
         }
 
-        guard await isModelLoaded() else {
-            throw VoiceCloningError.modelNotLoaded
-        }
+        logger.log("Qwen3-TTS synthesizing for speaker: \(speakerId)", category: .inference, level: .info)
 
-        logger.log(
-            "Synthesizing speech for speaker: \(speakerId)", category: .inference, level: .info)
-
-        let url = baseURL.appendingPathComponent("synthesize")
+        let url = ServiceConstants.baseURL.appendingPathComponent("qwen3/synthesize")
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
 
-        let payload: [String: Any] = [
+        var payload: [String: Any] = [
             "text": text,
             "speaker_id": speakerId,
             "language": language,
             "speed": speed,
             "temperature": temperature,
+            "top_k": topK,
             "top_p": topP,
             "repetition_penalty": repetitionPenalty,
-            "min_p": minP,
-            "cfg_weight": cfgWeight,
-            "exaggeration": exaggeration,
-            "chunk_size": chunkSize,
-            "chunk_min_seconds": minChunkSeconds,
-            "chunk_retries": chunkRetries,
+            "max_tokens": maxTokens,
         ]
+        if !refText.isEmpty {
+            payload["ref_text"] = refText
+        }
 
         request.httpBody = try JSONSerialization.data(withJSONObject: payload)
 
@@ -274,8 +373,10 @@ actor VoiceCloningService: ServiceProtocol {
 
         switch httpResponse.statusCode {
         case 200:
-            logger.log(
-                "Speech synthesized: \(data.count) bytes", category: .inference, level: .info)
+            guard data.count > ServiceConstants.wavHeaderMinSize else {
+                throw VoiceCloningError.invalidAudio
+            }
+            logger.log("Qwen3-TTS speech synthesized: \(data.count) bytes", category: .inference, level: .info)
             return data
         case 404:
             throw VoiceCloningError.speakerNotFound(speakerId)
@@ -283,21 +384,20 @@ actor VoiceCloningService: ServiceProtocol {
             throw VoiceCloningError.modelNotLoaded
         default:
             if let errorData = try? JSONDecoder().decode([String: String].self, from: data),
-                let detail = errorData["detail"]
-            {
-                throw VoiceCloningError.synthesizeFailed(detail)
+               let error = errorData["error"] {
+                throw VoiceCloningError.synthesizeFailed(error)
             }
             throw VoiceCloningError.synthesizeFailed("Status \(httpResponse.statusCode)")
         }
     }
 
     /// List all cloned speakers
-    func listSpeakers() async throws -> [String] {
+    func listSpeakers() async throws -> [SpeakerInfo] {
         guard await checkHealth() else {
             throw VoiceCloningError.serverNotRunning
         }
 
-        let url = baseURL.appendingPathComponent("speakers")
+        let url = ServiceConstants.baseURL.appendingPathComponent("speakers")
         let (data, _) = try await urlSession.data(from: url)
         let response = try JSONDecoder().decode(SpeakersResponse.self, from: data)
 
@@ -310,18 +410,55 @@ actor VoiceCloningService: ServiceProtocol {
             throw VoiceCloningError.serverNotRunning
         }
 
-        let url = baseURL.appendingPathComponent("speakers/\(speakerId)")
+        let url = ServiceConstants.baseURL.appendingPathComponent("speakers/\(speakerId)")
         var request = URLRequest(url: url)
         request.httpMethod = "DELETE"
 
         let (_, response) = try await urlSession.data(for: request)
 
         guard let httpResponse = response as? HTTPURLResponse,
-            httpResponse.statusCode == 200
-        else {
+              httpResponse.statusCode == 200 else {
             throw VoiceCloningError.speakerNotFound(speakerId)
         }
 
         logger.log("Deleted speaker: \(speakerId)", category: .inference, level: .info)
+    }
+
+    /// Rename a cloned speaker
+    func renameSpeaker(_ speakerId: String, to newName: String) async throws -> String {
+        guard await checkHealth() else {
+            throw VoiceCloningError.serverNotRunning
+        }
+
+        let url = ServiceConstants.baseURL.appendingPathComponent("speakers/\(speakerId)/rename")
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        let payload = ["new_name": newName]
+        request.httpBody = try JSONSerialization.data(withJSONObject: payload)
+
+        let (data, response) = try await urlSession.data(for: request)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw VoiceCloningError.networkError("Invalid response")
+        }
+
+        if httpResponse.statusCode == 200 {
+            if let json = try? JSONDecoder().decode([String: String].self, from: data),
+               let resultName = json["new_name"] {
+                logger.log("Renamed speaker: \(speakerId) -> \(resultName)", category: .inference, level: .info)
+                return resultName
+            }
+            return newName
+        } else if httpResponse.statusCode == 404 {
+            throw VoiceCloningError.speakerNotFound(speakerId)
+        } else {
+            if let errorData = try? JSONDecoder().decode([String: String].self, from: data),
+               let error = errorData["error"] {
+                throw VoiceCloningError.cloneFailed(error)
+            }
+            throw VoiceCloningError.cloneFailed("Rename failed")
+        }
     }
 }

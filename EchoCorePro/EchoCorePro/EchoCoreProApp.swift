@@ -3,6 +3,7 @@
 //  EchoCorePro
 //
 //  A high-performance local voice server for macOS
+//  Voice Cloning (Qwen3-TTS) + Natural TTS (Kokoro)
 //
 
 import SwiftData
@@ -47,7 +48,7 @@ struct EchoCoreProApp: App {
                 .environment(\.viewModelRegistry, coordinator.viewModelRegistry)
         }
         .modelContainer(modelContainer)
-        .defaultSize(width: 900, height: 650)
+        .defaultSize(width: 1100, height: 720)
 
         // Menu bar controls
         MenuBarExtra("EchoCore Pro", systemImage: "waveform") {
@@ -64,7 +65,7 @@ struct EchoCoreProApp: App {
     }
 }
 
-/// Main content view - Simplified: Voice Cloning + History only
+/// Main content view - Voice Cloning + Fast TTS
 struct ContentView: View {
     @EnvironmentObject var coordinator: AppCoordinator
     @State private var selectedTab: SidebarTab = .voiceCloning
@@ -78,41 +79,88 @@ struct ContentView: View {
             switch selectedTab {
             case .voiceCloning:
                 VoiceCloningView()
-            case .history:
-                HistoryView()
+            case .fastTTS:
+                KokoroTTSView()
             }
         }
-        .frame(minWidth: 900, minHeight: 650)
-        .background(.ultraThinMaterial)
+        .frame(minWidth: 1000, minHeight: 720)
+        .background(DS.BG.primary)
     }
 }
 
-/// Sidebar navigation tabs - Simplified
+/// Sidebar navigation tabs
 enum SidebarTab: String, CaseIterable, Identifiable {
-    case voiceCloning = "Voice Cloning"
-    case history = "History"
+    case voiceCloning = "Voice Clone"
+    case fastTTS = "Fast TTS"
 
     var id: String { rawValue }
-
-    var icon: String {
-        switch self {
-        case .voiceCloning: return "person.wave.2.fill"
-        case .history: return "clock"
-        }
-    }
 }
 
-/// Sidebar navigation view
+/// Sidebar navigation view with custom icons
 struct SidebarView: View {
     @Binding var selectedTab: SidebarTab
 
+    private let brandPurple = DS.Fuchsia.primary
+    private let brandViolet = DS.Fuchsia.secondary
+    private let brandCyan   = DS.Cyan.secondary
+
     var body: some View {
-        List(SidebarTab.allCases, selection: $selectedTab) { tab in
-            Label(tab.rawValue, systemImage: tab.icon)
-                .tag(tab)
+        List(selection: $selectedTab) {
+            Section {
+                // Voice Clone (Qwen3-TTS)
+                sidebarItem(
+                    tab: .voiceCloning,
+                    title: "Voice Clone",
+                    subtitle: "Qwen3-TTS",
+                    icon: { VoiceCloneIcon(color: selectedTab == .voiceCloning ? brandViolet : .gray) }
+                )
+
+                // Natural TTS (Kokoro)
+                sidebarItem(
+                    tab: .fastTTS,
+                    title: "Natural TTS",
+                    subtitle: "Kokoro",
+                    icon: { KokoroIcon(color: selectedTab == .fastTTS ? brandCyan : .gray) }
+                )
+            } header: {
+                Text("Speech")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
         }
         .listStyle(.sidebar)
         .navigationTitle("EchoCore Pro")
+        .toolbar {
+            ToolbarItem(placement: .automatic) {
+                Text("by nodaysidle")
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+            }
+        }
+        .frame(minWidth: 220)
+    }
+
+    @ViewBuilder
+    private func sidebarItem<Icon: View>(
+        tab: SidebarTab,
+        title: String,
+        subtitle: String,
+        @ViewBuilder icon: () -> Icon
+    ) -> some View {
+        HStack(spacing: 10) {
+            icon()
+                .frame(width: 24, height: 24)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.body)
+                Text(subtitle)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .tag(tab)
+        .padding(.vertical, 4)
     }
 }
 
@@ -120,23 +168,42 @@ struct SidebarView: View {
 struct MenuBarView: View {
     @EnvironmentObject var coordinator: AppCoordinator
 
+    private let brandPurple = DS.Fuchsia.primary
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("EchoCore Pro")
-                .font(.headline)
-            Divider()
-            Button("Start Recording") {
-                // TODO: Implement recording
+            HStack {
+                Image(systemName: "waveform")
+                    .foregroundStyle(brandPurple)
+                Text("EchoCore Pro")
+                    .font(.headline)
             }
-            Button("Stop Recording") {
-                // TODO: Implement stop recording
-            }
+
+            Text("by nodaysidle")
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
+
             Divider()
-            Button("Open Main Window") {
+
+            Text("Voice Clone: Qwen3-TTS")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Text("Natural TTS: Kokoro")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+            Divider()
+
+            Button {
                 NSApp.activate(ignoringOtherApps: true)
+            } label: {
+                Label("Open Main Window", systemImage: "macwindow")
             }
-            Button("Quit") {
+
+            Button {
                 NSApp.terminate(nil)
+            } label: {
+                Label("Quit", systemImage: "power")
             }
         }
         .padding()
@@ -144,28 +211,70 @@ struct MenuBarView: View {
     }
 }
 
-/// Settings view - simplified
+/// Settings view
 struct SettingsView: View {
     var body: some View {
         Form {
-            Text("EchoCore Pro Settings")
-                .font(.headline)
+            Section {
+                HStack {
+                    VoiceCloneIcon()
+                        .frame(width: 32, height: 32)
+                    VStack(alignment: .leading) {
+                        Text("Voice Clone - Qwen3-TTS")
+                            .font(.headline)
+                        Text("Clone any voice from 6+ seconds of audio")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
 
-            Divider()
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("10 Languages:")
+                        .font(.caption)
+                        .fontWeight(.medium)
+                    Text("EN, ZH, JA, KO, FR, DE, ES, IT, PT, RU")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                }
+            } header: {
+                Text("Voice Cloning")
+            }
 
-            Text("Qwen3-TTS Voice Cloning")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
+            Section {
+                HStack {
+                    KokoroIcon()
+                        .frame(width: 32, height: 32)
+                    VStack(alignment: .leading) {
+                        Text("Natural TTS - Kokoro")
+                            .font(.headline)
+                        Text("High-quality natural voices")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
 
-            Text("• 10 Languages: EN, IT, DE, FR, ES, PT, RU, ZH, JA, KO")
-                .font(.caption)
-                .foregroundStyle(.tertiary)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("3 Languages:")
+                        .font(.caption)
+                        .fontWeight(.medium)
+                    Text("EN (US/UK), IT")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                }
+            } header: {
+                Text("Natural TTS")
+            }
 
-            Text("• Voice cloning from 3+ seconds of audio")
-                .font(.caption)
-                .foregroundStyle(.tertiary)
+            Section {
+                Text("Both models support unlimited text length")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            } header: {
+                Text("Features")
+            }
         }
-        .frame(width: 400, height: 200)
+        .formStyle(.grouped)
+        .frame(width: 450, height: 400)
         .padding()
     }
 }

@@ -30,6 +30,9 @@
 		023 /* HistoryService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 126 /* HistoryService.swift */; };
 		025 /* PythonServerManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 128 /* PythonServerManager.swift */; };
 		026 /* AppIcon.icns in Resources */ = {isa = PBXBuildFile; fileRef = 129 /* AppIcon.icns */; };
+		027 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 133 /* Assets.xcassets */; };
+		030 /* TTSIcons.swift in Sources */ = {isa = PBXBuildFile; fileRef = 130 /* TTSIcons.swift */; };
+		032 /* KokoroTTSView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 132 /* KokoroTTSView.swift */; };
 		800 /* WhisperKit in Frameworks */ = {isa = PBXBuildFile; productRef = 801 /* WhisperKit */; };
 		EA26DA7E032A47A297A94B96 /* (null) in Sources */ = {isa = PBXBuildFile; };
 /* End PBXBuildFile section */
@@ -60,6 +63,9 @@
 		126 /* HistoryService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryService.swift; sourceTree = "<group>"; };
 		128 /* PythonServerManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PythonServerManager.swift; sourceTree = "<group>"; };
 		129 /* AppIcon.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = AppIcon.icns; sourceTree = "<group>"; };
+		130 /* TTSIcons.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TTSIcons.swift; sourceTree = "<group>"; };
+		132 /* KokoroTTSView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KokoroTTSView.swift; sourceTree = "<group>"; };
+		133 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -96,6 +102,7 @@
 				310 /* Metal */,
 				4501BF7A2F18713700EEB945 /* VoiceCloningView.swift */,
 				129 /* AppIcon.icns */,
+				133 /* Assets.xcassets */,
 			);
 			path = EchoCorePro;
 			sourceTree = "<group>";
@@ -153,6 +160,8 @@
 			isa = PBXGroup;
 			children = (
 				124 /* HistoryView.swift */,
+				130 /* TTSIcons.swift */,
+				132 /* KokoroTTSView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -250,6 +259,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				026 /* AppIcon.icns in Resources */,
+				027 /* Assets.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -283,6 +293,8 @@
 				021 /* HistoryView.swift in Sources */,
 				023 /* HistoryService.swift in Sources */,
 				025 /* PythonServerManager.swift in Sources */,
+				030 /* TTSIcons.swift in Sources */,
+				032 /* KokoroTTSView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -414,7 +426,7 @@
 		702 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = "";
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = EchoCorePro/EchoCorePro.entitlements;
 				CODE_SIGN_STYLE = Automatic;
@@ -431,6 +443,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "EchoCore Pro";
 				INFOPLIST_KEY_CFBundleIconFile = AppIcon;
+				INFOPLIST_KEY_CFBundleIconName = AppIcon;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "EchoCore Pro needs microphone access for voice recording and transcription.";
@@ -449,7 +462,7 @@
 		703 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = "";
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = EchoCorePro/EchoCorePro.entitlements;
 				CODE_SIGN_STYLE = Automatic;
@@ -466,6 +479,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "EchoCore Pro";
 				INFOPLIST_KEY_CFBundleIconFile = AppIcon;
+				INFOPLIST_KEY_CFBundleIconName = AppIcon;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "EchoCore Pro needs microphone access for voice recording and transcription.";

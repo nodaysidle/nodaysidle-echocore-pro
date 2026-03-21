@@ -27,11 +27,31 @@ mkdir -p "EchoCorePro.app/Contents/Resources/Scripts"
 # Copy executable
 cp .build/release/EchoCorePro "EchoCorePro.app/Contents/MacOS/"
 
-# Bundle Python scripts
+# Bundle Python scripts used by the current app runtime
 echo "📜 Bundling Python scripts..."
-cp Scripts/openvoice_server.py "EchoCorePro.app/Contents/Resources/Scripts/"
+cp Scripts/tts_server.py "EchoCorePro.app/Contents/Resources/Scripts/"
 cp Scripts/start_server.sh "EchoCorePro.app/Contents/Resources/Scripts/"
+cp Scripts/setup_tts.sh "EchoCorePro.app/Contents/Resources/Scripts/"
 chmod +x "EchoCorePro.app/Contents/Resources/Scripts/start_server.sh"
+chmod +x "EchoCorePro.app/Contents/Resources/Scripts/setup_tts.sh"
+
+# Bundle runtime assets expected by the server when available
+if [ -d "Scripts/piper_voices" ]; then
+    echo "🔊 Bundling Piper voices..."
+    cp -R "Scripts/piper_voices" "EchoCorePro.app/Contents/Resources/Scripts/"
+fi
+
+if [ -d "Scripts/speakers" ]; then
+    echo "🗣️  Bundling cloned speakers..."
+    cp -R "Scripts/speakers" "EchoCorePro.app/Contents/Resources/Scripts/"
+fi
+
+if [ -d "Scripts/venv" ] || [ -L "Scripts/venv" ]; then
+    echo "🐍 Bundling Python virtual environment..."
+    cp -R "Scripts/venv" "EchoCorePro.app/Contents/Resources/Scripts/"
+else
+    echo "⚠️  Scripts/venv not found. The packaged app will require setup_tts.sh before launch."
+fi
 
 # Bundle checkpoints if they exist
 if [ -d "checkpoints" ]; then
