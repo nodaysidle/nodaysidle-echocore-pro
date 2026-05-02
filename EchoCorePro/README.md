@@ -1,15 +1,24 @@
 # EchoCore Pro
 
-EchoCore Pro is a native macOS app for running local speech models through a compact SwiftUI interface.
-It launches a bundled Python backend automatically and keeps TTS / STT local on the machine.
+EchoCore Pro is a native macOS speech app built around a bundled Python backend and a compact SwiftUI front end.
+It keeps everything local on the machine: TTS, STT, model loading, and playback all stay on-device.
+
+## Model stack
+
+- **Primary TTS:** `mlx-community/Voxtral-4B-TTS-2603-mlx-4bit`
+- **Slovenian TTS fallback:** Piper `sl_SI-artur-medium`
+- **Speech-to-Text:** `mlx-community/whisper-small-mlx-q4`
+- **Voice cloning:** not part of this workflow
+- **Runtime:** local-only on Apple Silicon
+- **Backend:** bound to `127.0.0.1:8765`
 
 ## What it does
 
-- Text-to-Speech with `mlx-community/Voxtral-4B-TTS-2603-mlx-4bit`
-- Slovenian TTS fallback with Piper `sl_SI-artur-medium`
-- Speech-to-Text with bundled `mlx-community/whisper-small-mlx-q4`
-- Local-only processing on Apple Silicon
-- Backend bound to `127.0.0.1:8765`
+- Generates speech with Voxtral for the main multilingual path
+- Uses Piper only for Slovenian fallback
+- Transcribes audio with bundled Whisper
+- Launches the backend automatically from the app
+- Shows model / health state in the Status tab
 
 ## Project layout
 
@@ -72,12 +81,12 @@ Example health check:
 curl http://127.0.0.1:8765/health
 ```
 
-## Notes
+## Workflow notes
 
 - Voxtral is lazy-loaded on the first English / Italian TTS request.
 - Slovenian uses Piper because that is the dedicated local fallback path.
+- Whisper runs locally for transcription.
 - First synthesis may take longer while the model loads into memory.
-- STT uses the bundled Whisper model and runs locally.
 
 ## Troubleshooting
 
