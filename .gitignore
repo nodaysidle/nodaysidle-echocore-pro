@@ -1,17 +1,29 @@
+# macOS
 .DS_Store
-DerivedData/
-build.log
-build_standard.log
-firebase-debug.log
-venv/
-.serena/
-.vscode/
-CompiledApp/
-Build/
+**/.DS_Store
+
+# SwiftPM / Xcode / build output
 .build/
+**/.build/
 .swiftpm/
-checkpoints/
-*.pth
-*.mdb
-*.wav
-EchoCorePro.app/
+**/.swiftpm/
+Build/
+**/Build/
+*.xcuserstate
+*.xcworkspace/xcuserdata/
+*.xcodeproj/xcuserdata/
+
+# Python bytecode / caches
+__pycache__/
+*.py[cod]
+**/__pycache__/
+
+# Python / local runtime assets
+EchoCorePro/Runtime/Frameworks/
+EchoCorePro/Runtime/venv/
+EchoCorePro/Runtime/__pycache__/
+EchoCorePro/Models/
+
+# Local tooling
+.opencode/
+.mcp.json

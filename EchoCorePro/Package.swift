@@ -1,5 +1,4 @@
 // swift-tools-version: 5.9
-// The swift-tools-version declares the minimum version of Swift required to build this package.
 
 import PackageDescription
 
@@ -9,19 +8,17 @@ let package = Package(
         .macOS(.v14)
     ],
     products: [
-        .executable(
-            name: "EchoCorePro",
-            targets: ["EchoCorePro"]
-        ),
-    ],
-    dependencies: [
-        .package(url: "https://github.com/argmaxinc/WhisperKit.git", from: "0.9.0"),
+        .executable(name: "EchoCorePro", targets: ["EchoCorePro"])
     ],
     targets: [
         .executableTarget(
             name: "EchoCorePro",
-            dependencies: ["WhisperKit"],
-            path: "EchoCorePro"
+            path: "Sources/EchoCorePro"
         ),
+        .testTarget(
+            name: "EchoCoreProTests",
+            dependencies: ["EchoCorePro"],
+            path: "Tests/EchoCoreProTests"
+        )
     ]
 )
