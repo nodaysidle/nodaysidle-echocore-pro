@@ -1,92 +1,74 @@
-# EchoCore Pro
+<p align="center">
+  <strong>EchoCore Pro</strong>
+</p>
 
-![EchoCore Pro Banner](assets/banner.png)
+<p align="center">
+  <strong>Local voice intelligence engine for macOS — Metal-accelerated, offline-first, zero cloud.</strong>
+</p>
 
-<div align="center">
-
-[![Platform](https://img.shields.io/badge/platform-macOS-lightgrey.svg?style=flat-square)](https://www.apple.com/macos)
-[![Swift](https://img.shields.io/badge/language-Swift%205.9-orange.svg?style=flat-square)](https://swift.org)
-[![Metal](https://img.shields.io/badge/accelerated-Metal-blue.svg?style=flat-square)](https://developer.apple.com/metal/)
-[![License](https://img.shields.io/badge/license-MIT-blue.svg?style=flat-square)](LICENSE)
-
-**The Ultimate Local Voice Intelligence Engine.**  
-*Private. Accelerated. Beautiful.*
-
-</div>
-
----
-
-## 🌌 Overview
-
-**EchoCore Pro** is a state-of-the-art, native macOS application designed to bring powerful voice AI capabilities directly to your machine. By combining the elegance of **SwiftUI** with the raw power of **Metal** acceleration, EchoCore Pro enables real-time, offline voice synthesis and processing without a single byte leaving your device.
-
-Built for developers, creators, and privacy enthusiasts who demand low-latency performance and absolute control.
-
-## ✨ Key Features
-
-*   **🚀 Metal-Accelerated Inference**  
-    Harness the full power of Apple Silicon (M1/M2/M3) with optimized shaders for sub-second, real-time voice synthesis.
-
-*   **🔒 Total Privacy (Offline First)**  
-    No cloud reliance. Your voice data never leaves your local machine. Download models once, run them forever.
-
-*   **💎 Premium Native Interface**  
-    A sleek, futuristic SwiftUI interface designed for macOS Sonoma. Features glassmorphism, fluid animations, and a focus on usability.
-
-*   **🎛️ Audio Workbench**  
-    Integrated professional audio post-processing tools including de-essing, parametric EQ, and dynamic normalization.
-
-*   **📦 Model Management**  
-    One-click download and quantization of state-of-the-art open-source voice models into optimized formats for Apple Silicon.
-
-## 🛠️ Architecture
-
-EchoCore Pro utilizes a hybrid architecture to deliver the best of both worlds:
-
-1.  **Frontend (SwiftUI)**: Handles UI, user interaction, audio visualization, and Metal rendering.
-2.  **Core (Swift Data)**: Manages local persistence for models, history, and settings.
-3.  **Engine (Python Bridge)**: Orchestrates advanced ML models (like OpenVoice) running in a deeply integrated, managed environment.
-
-## 🚀 Getting Started
-
-### Prerequisites
-*   macOS 14.0 (Sonoma) or higher
-*   Apple Silicon (M1/M2/M3 recommended)
-*   16GB+ RAM recommended for large models
-
-### Installation
-
-1.  **Clone the Repository**
-    ```bash
-    git clone https://github.com/salvadalba/nodaysidle-echocore-pro.git
-    cd nodaysidle-echocore-pro
-    ```
-
-2.  **Setup Environment**
-    Run the automated setup script to configure the local Python environment and dependencies:
-    ```bash
-    ./Scripts/setup_venv.sh
-    ```
-
-3.  **Build**
-    Open `EchoCorePro/EchoCorePro.xcodeproj` in Xcode 15+ and build the target `EchoCorePro`.
-
-## 🤝 Contributing
-
-We welcome contributions to making local AI accessible and beautiful. Please verify that your code adheres to our SwiftLint rules and includes unit tests for new features.
-
-1.  Fork the Project
-2.  Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
-3.  Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
-4.  Push to the Branch (`git push origin feature/AmazingFeature`)
-5.  Open a Pull Request
-
-## 📜 License
-
-Distributed under the MIT License. See `LICENSE` for more information.
+<p align="center">
+  <img src="https://img.shields.io/badge/Platform-macOS%2014%2B-black?style=flat-square&logo=apple&logoColor=white" alt="Platform">
+  <img src="https://img.shields.io/badge/Swift-5.9-orange?style=flat-square&logo=swift&logoColor=white" alt="Swift">
+  <img src="https://img.shields.io/badge/Metal-accelerated-A2845E?style=flat-square" alt="Metal">
+  <img src="https://img.shields.io/badge/AI-on--device-5856D6?style=flat-square" alt="On-device AI">
+  <img src="https://img.shields.io/badge/License-MIT-green?style=flat-square" alt="License">
+</p>
 
 ---
 
-<div align="center">
-  <sub>Built with broken sleep and caffeine by salvadalba.</sub>
-</div>
+EchoCore Pro brings professional voice AI directly to your machine. Real-time synthesis, model management, and audio post-processing — all running locally on Apple Silicon via Metal. Your voice data never leaves the device.
+
+---
+
+## Features
+
+- **Metal-accelerated inference** — optimized shaders for sub-second, real-time voice synthesis on M-series chips
+- **Offline-first** — download models once, run them forever with no cloud dependency
+- **Model management** — one-click download and quantization of open-source voice models into Apple Silicon-optimized formats
+- **Audio workbench** — de-essing, parametric EQ, and dynamic normalization built in
+- **Native macOS UI** — SwiftUI with glassmorphism, fluid animations, and Sonoma-native design
+
+---
+
+## Requirements
+
+- macOS 14.0 Sonoma or later
+- Apple Silicon (M1/M2/M3 recommended)
+- 16GB+ RAM recommended for large models
+- Xcode 15+ (for development builds)
+
+---
+
+## Building from Source
+
+```bash
+git clone https://gitlab.com/NODAYSIDLE/echocorepro.git
+cd nodaysidle-echocore-pro
+```
+
+**Setup Python environment (ML engine):**
+
+```bash
+./Scripts/setup_venv.sh
+```
+
+**Build the macOS app:**
+
+```bash
+open EchoCorePro/EchoCorePro.xcodeproj
+# Build target: EchoCorePro (⌘B)
+```
+
+---
+
+## Architecture
+
+- **Frontend (SwiftUI)** — UI, audio visualization, Metal rendering
+- **Core (SwiftData)** — local persistence for models, history, and settings
+- **Engine (Python Bridge)** — ML model orchestration (OpenVoice and compatible models) via a managed local environment
+
+---
+
+<p align="center">
+  Built by <a href="https://gitlab.com/NODAYSIDLE">NODAYSIDLE</a>
+</p>
