@@ -1,6 +1,8 @@
 <p align="center">
-  <strong>EchoCore Pro</strong>
+  <img src="assets/echocore-icon.svg" alt="EchoCore Pro Logo" width="128" height="128">
 </p>
+
+<h1 align="center">EchoCore Pro</h1>
 
 <p align="center">
   <strong>Neural voice studio and multi-provider speech engine — real-time voice cloning, ElevenLabs, x.ai, OpenRouter, and offline Piper neural TTS.</strong>
@@ -111,7 +113,7 @@ EchoCore Pro is a voice synthesis and cloning workstation designed for Linux and
 ### Quick Run
 
 ```bash
-git clone https://github.com/salvadalba/nodaysidle-echocore-pro.git
+git clone https://github.com/nodaysidle/nodaysidle-echocore-pro.git
 cd nodaysidle-echocore-pro/EchoCorePro
 ./scripts/run.sh
 ```
