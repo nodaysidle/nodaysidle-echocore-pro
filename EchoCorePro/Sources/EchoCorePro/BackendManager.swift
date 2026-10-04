@@ -32,26 +32,21 @@ final class BackendManager: ObservableObject {
     }
 
     func start() async {
-        if await probeHealth() {
-            if await terminateStaleBackendIfNeeded() {
+        if let health = await probeHealth() {
+            if health.ready, await terminateStaleBackendIfNeeded(using: health) {
                 try? await Task.sleep(nanoseconds: 800_000_000)
+                if await probeHealth() != nil {
+                    startHealthLoop()
+                    return
+                }
             } else {
-                isRunning = true
-                statusMessage = "Connected"
                 startHealthLoop()
                 return
             }
         }
 
-        if await probeHealth() {
-            isRunning = true
-            statusMessage = "Connected"
-            startHealthLoop()
-            return
-        }
-
         guard let runtime = RuntimeLocator.locate() else {
-            statusMessage = "Runtime not found"
+            markOffline(message: "Runtime not found")
             log("Backend", "Runtime files are missing from the app bundle.")
             return
         }
@@ -71,6 +66,7 @@ final class BackendManager: ObservableObject {
         environment["PYTORCH_ENABLE_MPS_FALLBACK"] = "1"
         environment["ECHOCORE_LOG_FILE"] = runtime.backendLog.path
         environment["ECHOCORE_PARENT_PID"] = "\(ProcessInfo.processInfo.processIdentifier)"
+        environment["PATH"] = runtime.backendSearchPath(existing: environment["PATH"])
         process.environment = environment
 
         FileManager.default.createFile(atPath: runtime.backendLog.path, contents: nil)
@@ -96,7 +92,7 @@ final class BackendManager: ObservableObject {
             log("Backend", "Started local backend with PID \(process.processIdentifier).")
             startHealthLoop()
         } catch {
-            statusMessage = error.localizedDescription
+            markOffline(message: error.localizedDescription)
             log("Backend", error.localizedDescription)
         }
     }
@@ -169,19 +165,21 @@ final class BackendManager: ObservableObject {
         }
     }
 
-    private func probeHealth() async -> Bool {
+    private func probeHealth() async -> BackendHealth? {
         do {
             let data = try await request(path: "health", timeout: 1.5)
-            health = try JSONDecoder().decode(BackendHealth.self, from: data)
-            statusMessage = health.ready ? "Ready" : health.status
-            return health.ready
+            let decoded = try JSONDecoder().decode(BackendHealth.self, from: data)
+            health = decoded
+            isRunning = true
+            statusMessage = Self.statusMessage(for: decoded)
+            return decoded
         } catch {
-            health = .offline
-            return false
+            markOffline()
+            return nil
         }
     }
 
-    private func terminateStaleBackendIfNeeded() async -> Bool {
+    private func terminateStaleBackendIfNeeded(using health: BackendHealth) async -> Bool {
         guard let serverPID = health.serverPID else {
             return false
         }
@@ -193,8 +191,7 @@ final class BackendManager: ObservableObject {
 
         kill(pid_t(serverPID), SIGTERM)
         log("Backend", "Stopped stale backend with PID \(serverPID).")
-        health = .offline
-        isRunning = false
+        markOffline(message: "Restarting backend")
         return true
     }
 
@@ -248,7 +245,7 @@ final class BackendManager: ObservableObject {
         defer { try? reader.close() }
 
         writer.write(Data("--\(boundary)\r\n".utf8))
-        writer.write(Data("Content-Disposition: form-data; name=\"audio\"; filename=\"\(filename)\"\r\n".utf8))
+        writer.write(Data("Content-Disposition: form-data; name=\"audio\"; filename=\"\(escapedMultipartFilename(filename))\"\r\n".utf8))
         writer.write(Data("Content-Type: \(contentType)\r\n\r\n".utf8))
 
         while true {
@@ -261,6 +258,29 @@ final class BackendManager: ObservableObject {
 
         writer.write(Data("\r\n--\(boundary)--\r\n".utf8))
         return outputURL
+    }
+
+    private func markOffline(message: String = "Offline") {
+        health = .offline
+        isRunning = false
+        statusMessage = message
+    }
+
+    nonisolated static func statusMessage(for health: BackendHealth) -> String {
+        let trimmed = health.status.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            return health.ready ? "Ready" : "Connected"
+        }
+
+        return trimmed.prefix(1).uppercased() + trimmed.dropFirst()
+    }
+
+    nonisolated static func escapedMultipartFilename(_ filename: String) -> String {
+        filename
+            .replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "\"", with: "\\\"")
+            .replacingOccurrences(of: "\r", with: "")
+            .replacingOccurrences(of: "\n", with: "")
     }
 }
 
@@ -276,13 +296,48 @@ private enum BackendError: LocalizedError {
     }
 }
 
-private struct RuntimeLocator {
+struct RuntimeLocator {
     let resources: URL
     let python: URL
     let backend: URL
     let models: URL
     let cache: URL
     let backendLog: URL
+
+    func backendSearchPath(existing: String?) -> String {
+        let standardPaths = [
+            "/opt/homebrew/bin",
+            "/opt/homebrew/sbin",
+            "/usr/local/bin",
+            "/usr/bin",
+            "/bin",
+            "/usr/sbin",
+            "/sbin"
+        ]
+        let runtimeBin = resources
+            .appendingPathComponent("Runtime")
+            .appendingPathComponent("venv/bin")
+            .path
+        let bundledBin = resources
+            .appendingPathComponent("Runtime")
+            .appendingPathComponent("bin")
+            .path
+
+        var paths = [runtimeBin, bundledBin]
+        if let existing, !existing.isEmpty {
+            paths.append(contentsOf: existing.split(separator: ":").map(String.init))
+        }
+        paths.append(contentsOf: standardPaths)
+
+        var seen = Set<String>()
+        return paths.filter { path in
+            guard !path.isEmpty, !seen.contains(path) else {
+                return false
+            }
+            seen.insert(path)
+            return true
+        }.joined(separator: ":")
+    }
 
     static func locate() -> RuntimeLocator? {
         let resourceRoot = Bundle.main.resourceURL ?? URL(fileURLWithPath: FileManager.default.currentDirectoryPath)

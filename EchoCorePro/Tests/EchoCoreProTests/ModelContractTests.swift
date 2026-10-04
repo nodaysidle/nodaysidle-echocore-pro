@@ -92,6 +92,28 @@ final class ModelContractTests: XCTestCase {
         XCTAssertFalse(health.sttReady)
         XCTAssertEqual(health.modelsReady, false)
         XCTAssertEqual(health.status, "degraded")
+        XCTAssertEqual(BackendManager.statusMessage(for: health), "Degraded")
+    }
+
+    func testBackendSearchPathIncludesCommonMacOSBinaryLocations() {
+        let resources = URL(fileURLWithPath: "/Applications/EchoCorePro.app/Contents/Resources")
+        let locator = RuntimeLocator(
+            resources: resources,
+            python: resources.appendingPathComponent("Runtime/venv/bin/python"),
+            backend: resources.appendingPathComponent("Runtime/backend.py"),
+            models: resources.appendingPathComponent("Models"),
+            cache: URL(fileURLWithPath: "/tmp/EchoCorePro"),
+            backendLog: URL(fileURLWithPath: "/tmp/EchoCorePro/backend.log")
+        )
+
+        let path = locator.backendSearchPath(existing: "/custom/bin:/usr/bin")
+        let components = path.split(separator: ":").map(String.init)
+
+        XCTAssertTrue(components.contains("/Applications/EchoCorePro.app/Contents/Resources/Runtime/venv/bin"))
+        XCTAssertTrue(components.contains("/Applications/EchoCorePro.app/Contents/Resources/Runtime/bin"))
+        XCTAssertTrue(components.contains("/custom/bin"))
+        XCTAssertTrue(components.contains("/opt/homebrew/bin"))
+        XCTAssertEqual(components.filter { $0 == "/usr/bin" }.count, 1)
     }
 
     func testMultipartUploadFileContainsAudioPayload() throws {
@@ -118,6 +140,27 @@ final class ModelContractTests: XCTestCase {
         XCTAssertTrue(body.contains("Content-Type: audio/wav"))
         XCTAssertTrue(multipart.contains(audioPayload))
         XCTAssertTrue(body.hasSuffix("--test-boundary--\r\n"))
+    }
+
+    func testMultipartUploadEscapesProblematicFilenameCharacters() throws {
+        let audioURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("echocore-test-audio-\(UUID().uuidString)")
+            .appendingPathExtension("wav")
+        try Data([0x52, 0x49, 0x46, 0x46]).write(to: audioURL)
+        defer { try? FileManager.default.removeItem(at: audioURL) }
+
+        let multipartURL = try BackendManager.makeMultipartUploadFile(
+            audioURL: audioURL,
+            boundary: "test-boundary",
+            filename: "bad\"name\r\n.wav",
+            contentType: "audio/wav"
+        )
+        defer { try? FileManager.default.removeItem(at: multipartURL) }
+
+        let body = String(decoding: try Data(contentsOf: multipartURL), as: UTF8.self)
+
+        XCTAssertTrue(body.contains("filename=\"bad\\\"name.wav\""))
+        XCTAssertFalse(body.contains("\r\n.wav\""))
     }
 }
 

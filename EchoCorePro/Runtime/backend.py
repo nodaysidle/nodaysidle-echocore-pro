@@ -11,6 +11,7 @@ Runs only on 127.0.0.1. Models are loaded from the app bundle:
 from __future__ import annotations
 
 import os
+import shutil
 import subprocess
 import tempfile
 import threading
@@ -50,6 +51,7 @@ WHISPER_DIR = ROOT / "WhisperSmallQ4"
 PIPER_DIR = ROOT / "Piper" / "sl" / "sl_SI" / "artur" / "medium"
 PIPER_MODEL = PIPER_DIR / "sl_SI-artur-medium.onnx"
 PIPER_CONFIG = PIPER_DIR / "sl_SI-artur-medium.onnx.json"
+FFMPEG_PATH = shutil.which("ffmpeg")
 
 app = Flask(__name__)
 app.config["MAX_CONTENT_LENGTH"] = 250 * 1024 * 1024
@@ -271,6 +273,9 @@ def model_status() -> dict[str, dict[str, bool]]:
             "config": (WHISPER_DIR / "config.json").exists(),
             "weights": (WHISPER_DIR / "weights.npz").exists(),
         },
+        "dependencies": {
+            "ffmpeg": FFMPEG_PATH is not None,
+        },
     }
 
 
@@ -292,6 +297,7 @@ def health():
             "model_status": model_status(),
             "voice_status": voice_status(),
             "models_root": str(ROOT),
+            "ffmpeg_path": FFMPEG_PATH,
             "uptime_seconds": round(time.time() - START_TIME, 1),
             "server_pid": os.getpid(),
             "parent_pid": os.getppid(),
@@ -348,6 +354,12 @@ def stt():
     request.files["audio"].save(input_path)
 
     try:
+        if FFMPEG_PATH is None:
+            raise RuntimeError(
+                "ffmpeg is required for Whisper audio decoding but was not found in PATH. "
+                "Install it with Homebrew or bundle it in Runtime/bin."
+            )
+
         import mlx_whisper
 
         with stt_lock:
@@ -360,6 +372,8 @@ def stt():
             }
         )
     except Exception as error:
+        print(f"STT failed file={input_path.name}: {error}", flush=True)
+        traceback.print_exc()
         return jsonify({"error": str(error)}), 500
     finally:
         try:

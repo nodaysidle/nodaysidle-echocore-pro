@@ -56,7 +56,7 @@ struct ContentView: View {
 
                 HStack {
                     Circle()
-                        .fill(backend.health.ready ? ECTheme.mint : ECTheme.amber)
+                        .fill(backend.isRunning ? ECTheme.mint : ECTheme.amber)
                         .frame(width: 8, height: 8)
                     Text(backend.statusMessage)
                         .font(.caption)

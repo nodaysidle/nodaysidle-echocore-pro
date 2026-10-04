@@ -27,7 +27,7 @@ struct StatusView: View {
                 }
 
                 LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 14) {
-                    StatusCard(title: "Backend", value: backend.health.ready && backend.health.modelsReady == false ? "Running, assets incomplete" : backend.statusMessage, icon: "server.rack", color: backend.health.ready ? ECTheme.mint : ECTheme.amber)
+                    StatusCard(title: "Backend", value: backend.health.ready && backend.health.modelsReady == false ? "Running, assets incomplete" : backend.statusMessage, icon: "server.rack", color: backend.isRunning ? ECTheme.mint : ECTheme.amber)
                     StatusCard(title: "Voxtral", value: backend.health.voxtralLoaded ? "Loaded in memory" : "Bundled, lazy loaded", icon: "cpu.fill", color: ECTheme.cyan)
                     StatusCard(title: "Slovenian", value: "Piper artur medium", icon: "globe.europe.africa.fill", color: ECTheme.rose)
                     StatusCard(title: "STT", value: backend.health.sttReady ? "Whisper small q4 bundled" : "Model check pending", icon: "waveform.and.mic", color: .blue)

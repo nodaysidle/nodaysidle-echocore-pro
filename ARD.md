@@ -1,46 +1,43 @@
 # Architecture Requirements Document
 
-## 🧱 System Overview
-EchoCore Pro is a native macOS voice server application that runs entirely on-device. The architecture consists of a SwiftUI frontend for model management and audio processing, a local inference engine powered by CoreML/NaturalLanguage frameworks, Metal-accelerated audio post-processing, and SwiftData for local persistence. No network or server components required after initial model downloads.
+## Overview
+EchoCore Pro is a local macOS speech app built from a SwiftPM executable target, a SwiftUI interface, and a bundled Python Flask backend.
+The architecture is intentionally simple:
+- SwiftUI handles navigation, forms, and status display.
+- The backend handles actual TTS and STT work.
+- The Swift client starts the backend, probes health, and forwards requests.
 
-## 🏗 Architecture Style
-Desktop application with local-first architecture, leveraging macOS-specific frameworks for optimal performance on Apple Silicon.
+## Frontend architecture
+- SwiftUI views compose the app shell.
+- `ObservableObject` state is shared through `@EnvironmentObject`.
+- `NavigationSplitView` is used for the main app structure.
+- The UI is optimized for clarity and speed, not for a fake enterprise architecture layer.
 
-## 🎨 Frontend Architecture
-- **Framework:** SwiftUI with .ultraThinMaterial glassmorphism design system
-- **State Management:** Combine framework for reactive data flow across view models
-- **Routing:** NavigationStack and NavigationSplitView for hierarchical navigation
-- **Build Tooling:** Xcode project with native Swift compilation, Metal shader compilation
+## Backend architecture
+- The backend is a bundled Python Flask app at `Runtime/backend.py`.
+- It binds to `127.0.0.1:8765`.
+- It serves `/health`, `/voices`, `/tts`, and `/stt`.
+- The backend is expected to stay local and self-contained.
+- The Swift client should treat any successful health response as a reachable backend, even if readiness is degraded.
 
-## 🧠 Backend Architecture
-- **Approach:** Local background processes using Actor-based concurrency for model inference
-- **API Style:** Local HTTP server on localhost for inter-process communication
-- **Services:**
-- ModelDownloadService - handles fetching models from remote repositories
-- QuantizationService - converts models to optimized formats for Apple Silicon
-- InferenceEngine - runs CoreML/NaturalLanguage models for speech processing
-- AudioProcessingPipeline - Metal-accelerated de-essing and EQ
-- HotkeyService - AppKit-based global keyboard shortcuts
+## Data and persistence
+- There is no SwiftData-backed domain model in the current shipped app.
+- Temporary audio files are used for recording and STT upload plumbing.
+- The backend and bundled model assets are the real stateful parts of the system.
 
-## 🗄 Data Layer
-- **Primary Store:** SwiftData for models, processing history, and user preferences
-- **Relationships:** Model-to-ProcessingHistory one-to-many, UserSettings singleton
-- **Migrations:** SwiftData automatic schema migrations with versioned models
+## Packaging
+- The shipped artifact is a macOS `.app` bundle.
+- Packaging copies the bundled runtime and models into the app bundle.
+- Smoke testing happens against the installed app, not just the source tree.
 
-## ☁️ Infrastructure
-- **Hosting:** Standalone macOS app bundle (.app) distributed directly or via Mac App Store
-- **Scaling Strategy:** Single-device, utilizing multi-core CPUs and GPU via Metal for parallel processing
-- **CI/CD:** GitHub Actions or Xcode Cloud for automated builds and testing
+## Key trade-offs
+- Bundling Python makes the app heavier but self-contained.
+- A localhost backend keeps the UI simple and the runtime local.
+- Keeping the architecture small reduces the chance of doc/code drift.
 
-## ⚖️ Key Trade-offs
-- macOS-only enables deep framework integration but limits cross-platform reach
-- Local-first ensures privacy but requires significant local storage for models
-- Bundled Python runtime increases app size vs. requiring user installation
-- Metal-only optimization leverages Apple Silicon but excludes Intel Macs
-
-## 📐 Non-Functional Requirements
-- Sub-500ms inference latency on M1/M2/M3 chips
-- Memory efficiency: background operations under 2GB RAM
-- 60fps UI animations with matchedGeometryEffect transitions
-- Support for macOS 14+ (Sonoma) for latest SwiftUI/Metal features
-- Graceful download management with pause/resume capabilities
+## Design priorities
+- Local-first.
+- Fast feedback.
+- Predictable backend lifecycle.
+- Honest docs.
+- Fewer moving parts.

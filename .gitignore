@@ -27,3 +27,13 @@ EchoCorePro/Models/
 # Local tooling
 .opencode/
 .mcp.json
+
+# Web & Desktop artifacts
+node_modules/
+**/node_modules/
+dist/
+**/dist/
+.venv-linux/
+**/.venv-linux/
+target/
+**/target/

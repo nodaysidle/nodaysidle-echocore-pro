@@ -1,53 +1,41 @@
 # Agent Prompts — EchoCore Pro
-r
-## 🧭 Global Rules
 
-### ✅ Do
-- Use SwiftUI for all UI with .ultraThinMaterial and matchedGeometryEffect
-- Use SwiftData for persistence, CoreML for AI inference
-- Bundle Python runtime locally, no external server dependencies
-- Metal shaders for audio processing and waveform visualization
-- Local-first: all processing on-device, no cloud services
+## Purpose
+EchoCore Pro is a native macOS speech app built as a SwiftPM executable target with a SwiftUI front end and a bundled local Python Flask backend.
+The shipped workflow is local-first and currently centers on:
+- `GET /health`
+- `GET /voices`
+- `POST /tts`
+- `POST /stt`
 
-### ❌ Don’t
-- Do not create web servers or use web technologies
-- Do not use cross-platform frameworks (native macOS only)
-- Do not require network for core functionality
-- Do not use alternative databases besides SwiftData/Core Data
-- Do not introduce external AI APIs or cloud services
+## Hard rules
+- Keep the app local-only. No cloud dependency for core functionality.
+- Keep the real architecture aligned with the codebase: SwiftPM + SwiftUI + bundled Python backend.
+- Do not invent SwiftData, CoreML, Metal pipelines, remote services, or Xcode-project-only assumptions unless the code actually uses them.
+- Keep docs honest when implementation changes.
+- Prefer the smallest safe change that fixes the bug.
+- After any meaningful edit, run the relevant test/build/smoke check.
 
-## 🧩 Task Prompts
-## Foundation & Scaffolding
+## Current product shape
+- SwiftUI views: TTS, STT, Status, and the shared shell/navigation.
+- Backend manager: launches and monitors the bundled Python backend.
+- Backend runtime: `Runtime/backend.py` with bundled models and health checks.
+- Packaging: release build + app bundle install path.
 
-**Context**
-Set up Xcode project, build infrastructure, and core application lifecycle with SwiftUI, SwiftData, and logging systems
+## Read order for maintenance work
+1. `TRD.md` — actual endpoints, request/response shapes, and module contracts
+2. `TASKS.md` — current maintenance backlog and acceptance criteria
+3. `ARD.md` — architecture decisions and trade-offs
+4. `PRD.md` — product scope and non-goals
+5. `codemap.md` — file-by-file map of the real code
 
-### Universal Agent Prompt
-```
-ROLE: Expert macOS SwiftUI Engineer
+## Default execution pattern
+- Inspect the code first.
+- Patch only the files needed for the fix.
+- Verify with `swift test`, `swift build -c release`, and app smoke tests when the change touches behavior.
+- Update the docs in the same pass if the implementation changed.
 
-GOAL: Initialize Xcode project with SwiftUI, configure bundle/signing/entitlements, implement AppCoordinator, ServiceRegistry, ViewModelRegistry, and OSLog file logging
-
-CONTEXT: Set up Xcode project, build infrastructure, and core application lifecycle with SwiftUI, SwiftData, and logging systems
-
-FILES TO CREATE:
-- EchoCorePro/EchoCoreProApp.swift
-- EchoCorePro/Coordinator/AppCoordinator.swift
-- EchoCorePro/Coordinator/AppProtocol.swift
-- EchoCorePro/Services/ServiceRegistry.swift
-- EchoCorePro/ViewModels/ViewModelRegistry.swift
-- EchoCorePro/Utilities/Logging/OSLogManager.swift
-
-FILES TO MODIFY:
-_None_
-
-DETAILED STEPS:
-1. Create Xcode macOS app project targeting macOS 14+, configure bundle identifier and code signing
-2. Implement AppProtocol main entry point with AppCoordinator conforming to it
-3. Create ServiceRegistry for dependency injection and ViewModelRegistry for view model providers
-4. Set up OSLog subsystem with 5 categories: networking, inference, metal, storage, lifecycle
-5. Configure file logging to ~/Library/Logs/EchoCorePro/ with 30-day retention
-
-VALIDATION:
-xcodebuild -scheme EchoCorePro -configuration Debug build
-```
+## Output style
+- Be blunt and factual.
+- Call out when docs were stale.
+- Do not preserve fictional architecture in future edits.
