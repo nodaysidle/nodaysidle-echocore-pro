@@ -103,6 +103,8 @@ EchoCore Pro is a voice synthesis and cloning workstation designed for Linux and
 
 ## Getting Started
 
+No pre-built binaries are published: this repository has no GitHub releases. Run or build from source.
+
 ### Prerequisites
 
 - Linux (x86_64 or ARM64) or macOS
@@ -111,6 +113,8 @@ EchoCore Pro is a voice synthesis and cloning workstation designed for Linux and
 - Rust & Cargo (for desktop binary compilation)
 
 ### Quick Run
+
+`scripts/run.sh` starts the Python backend from `EchoCorePro/.venv-linux/`. The repository does not create that virtualenv or ship a requirements file, so set it up first.
 
 ```bash
 git clone https://github.com/nodaysidle/nodaysidle-echocore-pro.git
@@ -147,8 +151,8 @@ Install the application into your local desktop environment:
 # Executable
 cp src-tauri/target/release/echocore-pro ~/.local/bin/
 
-# Desktop entry
-cp ~/.local/share/applications/echocore-pro.desktop ~/.local/share/applications/
+# Desktop entry: none ships in this repository; create
+# ~/.local/share/applications/echocore-pro.desktop yourself, then:
 update-desktop-database ~/.local/share/applications
 ```
 
@@ -158,7 +162,7 @@ Now search for **EchoCore Pro** in your application launcher (`Super + Space`).
 
 ## License
 
-[MIT](LICENSE) © [NODAYSIDLE](https://github.com/nodaysidle)
+MIT © [NODAYSIDLE](https://github.com/nodaysidle)
 
 <p align="center">
   Built by <a href="https://github.com/nodaysidle">NODAYSIDLE</a>
